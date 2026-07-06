@@ -410,4 +410,78 @@ class IssueCertificateTest extends TestCase
         $this->assertNull($certificate->custom_image_fields);
         $this->assertSame($batch->id, $certificate->certificate_batch_id);
     }
+
+    public function test_canvas_page_falls_back_to_the_plain_form_when_the_template_has_no_canvas_json(): void
+    {
+        $user = User::factory()->create();
+        $template = Template::factory()->create(['canvas_json' => null]);
+
+        $this->actingAs($user)
+            ->get(route('certificates.create.canvas', ['template' => $template->id]))
+            ->assertRedirect(route('certificates.create', ['template' => $template->id]));
+    }
+
+    public function test_canvas_page_overlays_inputs_only_for_editable_bindings(): void
+    {
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'canvas_json' => [
+                'elements' => [
+                    ['id' => 'el_1', 'type' => 'text', 'binding' => 'title', 'xPercent' => 10, 'yPercent' => 10, 'widthPercent' => 30, 'heightPercent' => 5, 'rotation' => 0, 'z' => 0],
+                    ['id' => 'el_2', 'type' => 'text', 'binding' => 'recipient_name', 'xPercent' => 10, 'yPercent' => 20, 'widthPercent' => 30, 'heightPercent' => 5, 'rotation' => 0, 'z' => 1],
+                    ['id' => 'el_3', 'type' => 'text', 'binding' => 'organization_name', 'xPercent' => 10, 'yPercent' => 30, 'widthPercent' => 30, 'heightPercent' => 5, 'rotation' => 0, 'z' => 2],
+                    ['id' => 'el_4', 'type' => 'qrcode', 'binding' => 'qrcode', 'xPercent' => 60, 'yPercent' => 30, 'widthPercent' => 15, 'heightPercent' => 15, 'rotation' => 0, 'z' => 3],
+                    ['id' => 'el_5', 'type' => 'text', 'binding' => 'course_name', 'label' => 'Course Name', 'xPercent' => 10, 'yPercent' => 40, 'widthPercent' => 30, 'heightPercent' => 5, 'rotation' => 0, 'z' => 4],
+                ],
+            ],
+            'custom_field_schema' => [
+                ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => false],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->get(route('certificates.create.canvas', ['template' => $template->id]));
+
+        $response->assertOk();
+        $response->assertSee('name="title"', false);
+        $response->assertSee('name="recipient_name"', false);
+        $response->assertSee('name="custom_fields[course_name]"', false);
+        // organization_name and qrcode are system-populated, never user-editable on this page.
+        $response->assertDontSee('name="organization_name"', false);
+        $response->assertDontSee('name="qrcode"', false);
+    }
+
+    public function test_a_certificate_can_be_issued_through_the_canvas_pages_form(): void
+    {
+        Bus::fake();
+        Storage::fake('public');
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'canvas_json' => [
+                'elements' => [
+                    ['id' => 'el_1', 'type' => 'text', 'binding' => 'title', 'xPercent' => 10, 'yPercent' => 10, 'widthPercent' => 30, 'heightPercent' => 5, 'rotation' => 0, 'z' => 0],
+                    ['id' => 'el_2', 'type' => 'text', 'binding' => 'recipient_name', 'xPercent' => 10, 'yPercent' => 20, 'widthPercent' => 30, 'heightPercent' => 5, 'rotation' => 0, 'z' => 1],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('certificates.create.canvas', ['template' => $template->id]))
+            ->assertOk();
+
+        // The page has no bespoke submit endpoint - it posts straight to
+        // certificates.store, unchanged.
+        $response = $this->actingAs($user)->post(route('certificates.store'), [
+            'template_id' => $template->id,
+            'title' => 'Canvas Issued Certificate',
+            'recipient_name' => 'Canvas Recipient',
+            'recipient_email' => 'canvas@example.com',
+            'date_of_issue' => now()->toDateString(),
+        ]);
+
+        $certificate = Certificate::firstOrFail();
+        $response->assertRedirect(route('certificates.show', $certificate));
+        $this->assertSame('Canvas Issued Certificate', $certificate->title);
+    }
 }

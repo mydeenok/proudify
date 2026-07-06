@@ -9,6 +9,7 @@ use App\Jobs\Certificates\GenerateCertificatePdfJob;
 use App\Models\Certificate;
 use App\Models\Template;
 use App\Services\CertificateRenderService;
+use App\Services\TemplateBackgroundImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,6 +68,62 @@ class CertificateController extends Controller
             'template' => $template,
             'initialPreviewHtml' => $initialPreviewHtml,
             'customFields' => $template->editableCustomFields(),
+        ]);
+    }
+
+    /**
+     * Same issuance flow as create()/store(), but the design itself is the
+     * form: the real rendered certificate (renderPreviewHtml — same as the
+     * plain form's live preview) fills the canvas, with an editable input
+     * absolutely-positioned over every field the user is allowed to fill
+     * in, at that field's exact canvas_json coordinates. No new layout is
+     * ever persisted per certificate — position/style stay locked to the
+     * template's own design; only content changes. Submission collects
+     * those values into the exact field names storeValidationRules()
+     * already expects, so it POSTs to the unchanged store() endpoint below
+     * with zero new backend logic.
+     *
+     * Templates with no canvas_json yet (hand-written HTML never opened in
+     * the builder) have no element coordinates to overlay inputs onto, so
+     * this falls back to the plain form instead of showing a design with
+     * nothing editable on it.
+     */
+    public function createCanvas(Request $request, Template $template, CertificateRenderService $renderService): View|RedirectResponse
+    {
+        abort_unless($template->is_active, 404);
+
+        if (empty($template->canvas_json['elements'])) {
+            return redirect()->route('certificates.create', ['template' => $template->id]);
+        }
+
+        $customFieldKeys = collect($template->editableCustomFields())->pluck('key')->all();
+        $editableSystemBindings = ['title', 'recipient_name', 'description', 'date_of_issue', 'date_of_expiry'];
+
+        $overlayElements = collect($template->canvas_json['elements'])
+            ->filter(function (array $element) use ($editableSystemBindings, $customFieldKeys) {
+                $binding = $element['binding'] ?? null;
+
+                return $binding && (in_array($binding, $editableSystemBindings, true) || in_array($binding, $customFieldKeys, true));
+            })
+            ->values();
+
+        // Text bindings the overlay will handle are rendered blank in the
+        // background so the overlay input's own text is the only copy
+        // visible — otherwise renderPreviewHtml's sample fallbacks
+        // ("Certificate Title" etc) would show through underneath it.
+        $initialPreviewHtml = $renderService->renderPreviewHtml($template, $request->user(), [
+            'title' => '',
+            'recipient_name' => '',
+            'description' => '',
+        ]);
+
+        return view('certificates.create-canvas', [
+            'template' => $template,
+            'customFields' => $template->editableCustomFields(),
+            'overlayElements' => $overlayElements,
+            'initialPreviewHtml' => $initialPreviewHtml,
+            'canvasWidth' => $template->orientation === 'portrait' ? 707 : 1000,
+            'canvasHeight' => $template->orientation === 'portrait' ? 1000 : 707,
         ]);
     }
 

@@ -53,6 +53,7 @@ Route::middleware(['auth', 'approved'])->group(function () {
 
     Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates.index');
     Route::get('/certificates/create', [CertificateController::class, 'create'])->name('certificates.create');
+    Route::get('/certificates/create/{template}/canvas', [CertificateController::class, 'createCanvas'])->name('certificates.create.canvas');
     Route::post('/certificates/preview', [CertificateController::class, 'preview'])
         ->middleware('throttle:60,1')
         ->name('certificates.preview');

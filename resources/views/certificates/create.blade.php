@@ -4,6 +4,10 @@
     :back-url="route('templates.index')"
 >
     <x-slot:actions>
+        <a href="{{ route('certificates.create.canvas', ['template' => $template->id]) }}" class="btn-secondary h-10 px-md py-xs text-sm">
+            <span class="material-symbols-outlined text-[18px]">draw</span>
+            Use Visual Canvas
+        </a>
         <button type="button" id="preview-certificate-btn" class="btn-secondary h-10 px-md py-xs text-sm">
             <span class="material-symbols-outlined text-[18px]">visibility</span>
             Preview Certificate
