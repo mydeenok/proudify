@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\Template;
 use App\Models\User;
 use App\Models\UserSubscription;
+use App\Services\CertificateRenderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -21,9 +22,43 @@ class IssueCertificateTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Single-certificate issuance now calls
+     * CertificateRenderService::generateAssetsSynchronously() directly
+     * (not a queued job Bus::fake() would intercept), so feature tests
+     * that only care about issuance logic (validation, quota, field
+     * locking) stub it out here rather than running real Browsershot/
+     * Imagick on every test - that correctness is already covered by
+     * CertificateRenderServiceTest and the Phase 0 manual verification.
+     */
+    private function fakeAssetGeneration(): void
+    {
+        // Wraps a REAL, fully-constructed instance (not Laravel's
+        // partialMock() helper, which skips the constructor entirely and
+        // leaves the injected QrCodeService property uninitialized) -
+        // some of these tests also call other real CertificateRenderService
+        // methods (e.g. renderHtml) directly to assert on their output, so
+        // only generateAssetsSynchronously is stubbed here; everything
+        // else falls through to the real implementation.
+        $real = $this->app->make(CertificateRenderService::class);
+        $mock = \Mockery::mock($real)->makePartial();
+        $mock->shouldReceive('generateAssetsSynchronously')
+            ->andReturnUsing(function (Certificate $certificate) {
+                $certificate->forceFill([
+                    'qr_code_path' => 'certificates/fake/qr.png',
+                    'pdf_path' => 'certificates/fake/certificate.pdf',
+                    'image_path' => 'certificates/fake/certificate.jpg',
+                    'image_generation_status' => 'completed',
+                ])->save();
+            });
+
+        $this->app->instance(CertificateRenderService::class, $mock);
+    }
+
     public function test_a_user_can_issue_a_single_certificate(): void
     {
         Bus::fake();
+        $this->fakeAssetGeneration();
         Subscription::factory()->free()->create();
 
         $user = User::factory()->create();
@@ -45,12 +80,17 @@ class IssueCertificateTest extends TestCase
         $this->assertNotEmpty($certificate->verification_signature);
         $this->assertSame('active', $certificate->status);
 
-        Bus::assertChained([
-            GenerateCertificateQrCodeJob::class,
-            GenerateCertificatePdfJob::class,
-            ConvertCertificatePdfToImageJob::class,
-            SendCertificateIssuedEmailJob::class,
-        ]);
+        // Single issuance is synchronous now - the certificate is fully
+        // ready by the time store() returns, no job chain for its assets.
+        $this->assertSame('completed', $certificate->image_generation_status);
+        $this->assertNotEmpty($certificate->qr_code_path);
+        $this->assertNotEmpty($certificate->pdf_path);
+        $this->assertNotEmpty($certificate->image_path);
+
+        Bus::assertDispatched(SendCertificateIssuedEmailJob::class);
+        Bus::assertNotDispatched(GenerateCertificateQrCodeJob::class);
+        Bus::assertNotDispatched(GenerateCertificatePdfJob::class);
+        Bus::assertNotDispatched(ConvertCertificatePdfToImageJob::class);
     }
 
     public function test_only_active_templates_can_be_used(): void
@@ -119,6 +159,7 @@ class IssueCertificateTest extends TestCase
     public function test_a_user_with_no_subscription_auto_claims_the_free_plan(): void
     {
         Bus::fake();
+        $this->fakeAssetGeneration();
         Subscription::factory()->free()->create();
 
         $user = User::factory()->create();
@@ -159,6 +200,7 @@ class IssueCertificateTest extends TestCase
     public function test_admins_issue_without_any_quota_check(): void
     {
         Bus::fake();
+        $this->fakeAssetGeneration();
 
         $admin = User::factory()->admin()->create();
         $template = Template::factory()->create();
@@ -196,13 +238,38 @@ class IssueCertificateTest extends TestCase
             ->assertJsonPath('display_status', 'active');
     }
 
-    public function test_certificate_regenerate_dispatches_asset_jobs(): void
+    public function test_regenerating_a_single_issued_certificate_runs_synchronously(): void
     {
         Bus::fake();
+        $this->fakeAssetGeneration();
 
         $user = User::factory()->create();
         $certificate = Certificate::factory()->create([
             'user_id' => $user->id,
+            'certificate_batch_id' => null,
+            'qr_code_path' => 'certificates/1/qr/test.png',
+            'pdf_path' => null,
+            'image_path' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('certificates.regenerate', $certificate))
+            ->assertOk()
+            ->assertJsonPath('image_generation_status', 'completed')
+            ->assertJsonPath('ready', true);
+
+        Bus::assertNothingDispatched();
+    }
+
+    public function test_regenerating_a_bulk_issued_certificate_stays_queued(): void
+    {
+        Bus::fake();
+
+        $user = User::factory()->create();
+        $batch = \App\Models\CertificateBatch::factory()->create(['user_id' => $user->id]);
+        $certificate = Certificate::factory()->create([
+            'user_id' => $user->id,
+            'certificate_batch_id' => $batch->id,
             'qr_code_path' => 'certificates/1/qr/test.png',
         ]);
 
@@ -220,6 +287,7 @@ class IssueCertificateTest extends TestCase
     public function test_a_certificate_can_be_issued_with_custom_text_and_image_fields(): void
     {
         Bus::fake();
+        $this->fakeAssetGeneration();
         Storage::fake('public');
         Subscription::factory()->free()->create();
 
@@ -275,6 +343,7 @@ class IssueCertificateTest extends TestCase
     public function test_a_script_injection_attempt_in_a_custom_text_field_is_escaped_not_executed(): void
     {
         Bus::fake();
+        $this->fakeAssetGeneration();
         Subscription::factory()->free()->create();
 
         $user = User::factory()->create();
@@ -352,6 +421,7 @@ class IssueCertificateTest extends TestCase
     public function test_a_custom_field_key_not_declared_in_the_templates_schema_is_silently_dropped(): void
     {
         Bus::fake();
+        $this->fakeAssetGeneration();
         Storage::fake('public');
         Subscription::factory()->free()->create();
 
@@ -453,6 +523,7 @@ class IssueCertificateTest extends TestCase
     public function test_a_certificate_can_be_issued_through_the_canvas_pages_form(): void
     {
         Bus::fake();
+        $this->fakeAssetGeneration();
         Storage::fake('public');
         Subscription::factory()->free()->create();
 

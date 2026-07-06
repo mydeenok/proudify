@@ -218,7 +218,7 @@ class CertificateController extends Controller
             return redirect()->route('pricing')->with('quota_message', $exception->getMessage());
         }
 
-        return redirect()->route('certificates.show', $certificate)->with('status', 'Certificate is being generated — it will be ready in a few moments.');
+        return redirect()->route('certificates.show', $certificate)->with('status', 'Certificate issued.');
     }
 
     /**
@@ -293,24 +293,42 @@ class CertificateController extends Controller
         return response()->json($this->statusPayload($certificate));
     }
 
-    public function regenerate(Request $request, Certificate $certificate): JsonResponse
+    /**
+     * Bulk-issued certificates (certificate_batch_id set) stay on the
+     * queue, matching how the rest of that batch was generated. A
+     * single-issued certificate regenerates synchronously instead, the
+     * same way it was generated in the first place - the request just
+     * waits the few seconds it takes rather than polling.
+     */
+    public function regenerate(Request $request, Certificate $certificate, CertificateRenderService $renderService): JsonResponse
     {
         $this->authorizeAccess($request, $certificate);
 
         $certificate->refresh();
 
-        abort_unless($certificate->qr_code_path, 422, 'QR code is not ready yet.');
+        if ($certificate->certificate_batch_id) {
+            abort_unless($certificate->qr_code_path, 422, 'QR code is not ready yet.');
 
-        Bus::chain([
-            new GenerateCertificatePdfJob($certificate),
-            new ConvertCertificatePdfToImageJob($certificate),
-        ])->dispatch();
+            Bus::chain([
+                new GenerateCertificatePdfJob($certificate),
+                new ConvertCertificatePdfToImageJob($certificate),
+            ])->dispatch();
 
-        $certificate->forceFill(['image_generation_status' => 'processing'])->save();
+            $certificate->forceFill(['image_generation_status' => 'processing'])->save();
+
+            return response()->json([
+                ...$this->statusPayload($certificate->fresh()),
+                'message' => 'Certificate assets are being regenerated.',
+            ]);
+        }
+
+        $renderService->generateAssetsSynchronously($certificate);
+
+        $certificate->refresh();
 
         return response()->json([
-            ...$this->statusPayload($certificate->fresh()),
-            'message' => 'Certificate assets are being regenerated.',
+            ...$this->statusPayload($certificate),
+            'message' => $certificate->image_path ? 'Certificate regenerated.' : 'Regeneration failed - please try again.',
         ]);
     }
 
@@ -331,8 +349,19 @@ class CertificateController extends Controller
         );
     }
 
+    /**
+     * Only applies to bulk-issued certificates - a single-issued one is
+     * always fully done or 'failed' by the time this could ever run (see
+     * IssueSingleCertificateAction), so silently re-queueing it here would
+     * reintroduce a queue-worker dependency the synchronous path exists to
+     * remove. Its retry path is the regenerate button, not this.
+     */
     private function queueMissingGenerationJobs(Certificate $certificate): void
     {
+        if (! $certificate->certificate_batch_id) {
+            return;
+        }
+
         if ($certificate->image_generation_status === 'processing') {
             return;
         }

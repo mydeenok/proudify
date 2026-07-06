@@ -6,11 +6,13 @@ use App\Models\Certificate;
 use App\Models\Template;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Imagick;
 use RuntimeException;
 use Spatie\Browsershot\Browsershot;
+use Throwable;
 
 /**
  * Fills a template's placeholder tokens with a certificate's real data and
@@ -161,6 +163,42 @@ class CertificateRenderService
         $browsershot->savePdf($absolutePath);
 
         return $relativePath;
+    }
+
+    /**
+     * Runs QR + PDF + image generation synchronously for one certificate -
+     * shared by first-time single issuance (IssueSingleCertificateAction)
+     * and the regenerate action on the certificate page, so there's one
+     * implementation instead of two copies drifting apart. QR is skipped
+     * if it already exists (regenerate only needs to redo PDF/image; QR
+     * essentially never fails since it's pure PHP with no subprocess).
+     *
+     * Failure is caught and recorded rather than thrown - the certificate
+     * row already exists either way, and image_generation_status =
+     * 'failed' is what surfaces the existing regenerate/retry action
+     * instead of turning a transient Chrome/Imagick hiccup into a hard
+     * error on the whole request.
+     */
+    public function generateAssetsSynchronously(Certificate $certificate): void
+    {
+        try {
+            if (! $certificate->qr_code_path) {
+                $certificate->forceFill(['qr_code_path' => $this->qrCodeService->generate($certificate)])->save();
+            }
+
+            $certificate->forceFill(['pdf_path' => $this->renderPdf($certificate)])->save();
+            $certificate->forceFill([
+                'image_path' => $this->convertPdfToImage($certificate),
+                'image_generation_status' => 'completed',
+            ])->save();
+        } catch (Throwable $exception) {
+            $certificate->forceFill(['image_generation_status' => 'failed'])->save();
+
+            Log::error('Synchronous certificate asset generation failed.', [
+                'certificate_id' => $certificate->id,
+                'exception' => $exception->getMessage(),
+            ]);
+        }
     }
 
     /**
