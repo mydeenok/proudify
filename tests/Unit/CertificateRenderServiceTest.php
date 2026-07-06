@@ -88,4 +88,34 @@ class CertificateRenderServiceTest extends TestCase
         $this->assertStringContainsString('src=\'data:image/', $html);
         $this->assertStringNotContainsString('{qrcode}', $html);
     }
+
+    public function test_every_certificate_carries_the_verification_watermark(): void
+    {
+        $template = Template::factory()->create(['html_content' => '<html><body><h1>{title}</h1></body></html>']);
+        $certificate = Certificate::factory()->create(['template_id' => $template->id]);
+
+        $html = app(CertificateRenderService::class)->renderHtml($certificate);
+
+        $this->assertStringContainsString('Verified by proudify.in', $html);
+    }
+
+    public function test_the_watermark_is_appended_even_without_a_body_tag(): void
+    {
+        $template = Template::factory()->create(['html_content' => '<h1>{title}</h1>']);
+        $certificate = Certificate::factory()->create(['template_id' => $template->id]);
+
+        $html = app(CertificateRenderService::class)->renderHtml($certificate);
+
+        $this->assertStringContainsString('Verified by proudify.in', $html);
+    }
+
+    public function test_the_preview_also_carries_the_verification_watermark(): void
+    {
+        $template = Template::factory()->create(['html_content' => '<html><body><h1>{title}</h1></body></html>']);
+        $issuer = User::factory()->create();
+
+        $html = app(CertificateRenderService::class)->renderPreviewHtml($template, $issuer, []);
+
+        $this->assertStringContainsString('Verified by proudify.in', $html);
+    }
 }

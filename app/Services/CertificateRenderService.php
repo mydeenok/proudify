@@ -57,10 +57,12 @@ class CertificateRenderService
         $html = $this->applyCompanyLogoSrcReplacements($html, (array) $certificate->company_logos);
         $html = $this->applyCustomImageFieldReplacements($html, $template, (array) $certificate->custom_image_fields);
 
-        return strtr($html, [
+        $html = strtr($html, [
             '{qrcode}' => $qrcodeImg,
             '{signature}' => $signatureImg,
         ]);
+
+        return $this->appendVerificationWatermark($html);
     }
 
     /**
@@ -104,10 +106,12 @@ class CertificateRenderService
         $html = $this->applyCompanyLogoSrcReplacements($html, (array) $issuer->org_logos);
         $html = $this->stripUnfilledCustomImagePlaceholders($html, $template);
 
-        return strtr($html, [
+        $html = strtr($html, [
             '{qrcode}' => $qrcodeImg,
             '{signature}' => $signatureImg,
         ]);
+
+        return $this->appendVerificationWatermark($html);
     }
 
     /**
@@ -129,6 +133,28 @@ class CertificateRenderService
         }
 
         return $html;
+    }
+
+    /**
+     * Every certificate (and its preview) carries this small verification
+     * mark regardless of which template rendered it - it's appended at
+     * render time rather than left up to individual templates, so there's
+     * no way to end up with a certificate missing it. position:absolute
+     * with no positioned ancestor places it relative to the page itself,
+     * which lines up with the certificate's visible edges since every
+     * template here renders at the exact page_format/orientation
+     * Browsershot is told to use - the same assumption
+     * LayoutToHtmlRenderer's own overlay elements already rely on.
+     */
+    private function appendVerificationWatermark(string $html): string
+    {
+        $watermark = '<div style="position:absolute;left:6px;bottom:4px;font-size:7px;line-height:1;color:#999999;opacity:0.7;font-family:Arial,sans-serif;z-index:9999;pointer-events:none;">Verified by proudify.in</div>';
+
+        if (stripos($html, '</body>') !== false) {
+            return preg_replace('/<\/body>/i', $watermark.'</body>', $html, 1) ?? $html;
+        }
+
+        return $html.$watermark;
     }
 
     public function renderPdf(Certificate $certificate): string
