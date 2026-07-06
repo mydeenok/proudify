@@ -64,6 +64,7 @@ export function initCertificateLivePreview() {
 
             if (response.ok) {
                 frame.srcdoc = await response.text();
+                await waitForFrameFontsReady(frame);
             }
         } finally {
             if (loading) loading.style.display = 'none';
@@ -95,14 +96,36 @@ export function initCertificateLivePreview() {
 
     applyZoom();
 
-    // The iframe already has real markup via the server-rendered
-    // initialPreviewHtml (no fetch needed for the first paint) - the
-    // loading indicator must start hidden, since rerender() is the only
-    // thing that ever toggles it and it doesn't run until the user
-    // actually edits a field.
-    if (loading) loading.style.display = 'none';
+    // The initial iframe content comes from server-rendered
+    // initialPreviewHtml (no fetch needed for the first paint), but the
+    // template's own fonts (Google Fonts etc loaded via its html_content)
+    // still need to finish loading before the design is actually done
+    // rendering - hiding the indicator earlier than that would flash
+    // fallback-font text as if it were the real design.
+    waitForFrameFontsReady(frame).then(() => {
+        if (loading) loading.style.display = 'none';
+    });
 
     initPreviewLaunch(fields, customTextFields);
+}
+
+/**
+ * Resolves once the iframe has finished loading AND its document's fonts
+ * are ready — not just once the HTML has parsed. A `srcdoc` iframe already
+ * present in the initial page markup may have finished loading by the time
+ * this runs (no `load` event left to catch), so `readyState` is checked
+ * first rather than unconditionally waiting for the event.
+ */
+function waitForFrameFontsReady(frame) {
+    const settle = (doc) => (doc?.fonts?.ready ? doc.fonts.ready.catch(() => {}) : Promise.resolve());
+
+    if (frame.contentDocument?.readyState === 'complete') {
+        return settle(frame.contentDocument);
+    }
+
+    return new Promise((resolve) => {
+        frame.addEventListener('load', () => resolve(settle(frame.contentDocument)), { once: true });
+    });
 }
 
 /**

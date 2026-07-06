@@ -83,6 +83,23 @@
             const loading = document.getElementById('preview-loading');
             let debounceTimer = null;
 
+            // Resolves once the iframe has actually finished loading AND its
+            // document's fonts are ready - not just once the HTML has
+            // parsed. A srcdoc iframe already in the initial page markup may
+            // have finished loading by the time this runs (no `load` event
+            // left to catch), so readyState is checked first.
+            function waitForFrameFontsReady() {
+                const settle = (doc) => (doc?.fonts?.ready ? doc.fonts.ready.catch(() => {}) : Promise.resolve());
+
+                if (frame.contentDocument?.readyState === 'complete') {
+                    return settle(frame.contentDocument);
+                }
+
+                return new Promise((resolve) => {
+                    frame.addEventListener('load', () => resolve(settle(frame.contentDocument)), { once: true });
+                });
+            }
+
             async function rerender() {
                 loading.style.display = 'flex';
 
@@ -98,11 +115,22 @@
 
                     if (response.ok) {
                         frame.srcdoc = await response.text();
+                        await waitForFrameFontsReady();
                     }
                 } finally {
                     loading.style.display = 'none';
                 }
             }
+
+            // The initial iframe content is server-rendered (real signature/
+            // logo already baked in), but the template's own fonts still
+            // need to finish loading before the design is genuinely done -
+            // show the indicator until that settles instead of assuming the
+            // first paint is instant.
+            loading.style.display = 'flex';
+            waitForFrameFontsReady().then(() => {
+                loading.style.display = 'none';
+            });
 
             form.addEventListener('input', () => {
                 clearTimeout(debounceTimer);
