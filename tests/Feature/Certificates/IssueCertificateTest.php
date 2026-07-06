@@ -555,4 +555,51 @@ class IssueCertificateTest extends TestCase
         $response->assertRedirect(route('certificates.show', $certificate));
         $this->assertSame('Canvas Issued Certificate', $certificate->title);
     }
+
+    public function test_a_synchronous_generation_failure_is_recorded_not_thrown(): void
+    {
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+        $certificate = Certificate::factory()->create([
+            'user_id' => $user->id,
+            'template_id' => $template->id,
+        ]);
+
+        // Forces a fast, deterministic failure inside renderHtml() (which
+        // renderPdf() calls first) without needing to break real
+        // Browsershot/Chrome: a soft-deleted template makes the belongsTo
+        // relation resolve to null on a fresh load, so accessing
+        // $template->html_content throws immediately.
+        $template->delete();
+        $freshCertificate = Certificate::find($certificate->id);
+
+        app(CertificateRenderService::class)->generateAssetsSynchronously($freshCertificate);
+
+        $freshCertificate->refresh();
+
+        // The method itself must not throw (already implicit - reaching
+        // this line proves it) - and the failure must be recorded so the
+        // existing regenerate/retry action can surface it.
+        $this->assertSame('failed', $freshCertificate->image_generation_status);
+        $this->assertNotEmpty($freshCertificate->qr_code_path, 'QR runs before the template lookup and should have succeeded.');
+        $this->assertNull($freshCertificate->pdf_path);
+        $this->assertNull($freshCertificate->image_path);
+    }
+
+    public function test_the_show_page_renders_a_retry_action_for_a_failed_certificate(): void
+    {
+        $user = User::factory()->create();
+        $certificate = Certificate::factory()->create([
+            'user_id' => $user->id,
+            'qr_code_path' => 'certificates/1/qr/test.png',
+            'pdf_path' => null,
+            'image_path' => null,
+            'image_generation_status' => 'failed',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('certificates.show', $certificate))
+            ->assertOk()
+            ->assertSee('Retry Generation');
+    }
 }
