@@ -27,6 +27,11 @@ class TemplateFactory extends Factory
             'is_active' => true,
             'is_exclusive' => false,
             'created_by' => User::factory()->admin(),
+            // Pre-cached so ordinary tests don't trigger real corner
+            // detection (a full Browsershot screenshot render) on every
+            // single render call - tests that actually exercise detection
+            // override this back to null explicitly.
+            'watermark_corner' => 'bottom-left',
         ];
     }
 

@@ -21,6 +21,7 @@ class Template extends Model
         'html_content',
         'canvas_json',
         'custom_field_schema',
+        'watermark_corner',
         'thumbnail_path',
         'page_format',
         'orientation',

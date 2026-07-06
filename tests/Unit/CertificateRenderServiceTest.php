@@ -118,4 +118,50 @@ class CertificateRenderServiceTest extends TestCase
 
         $this->assertStringContainsString('Verified by proudify.in', $html);
     }
+
+    public function test_the_watermark_has_no_hardcoded_font_so_it_inherits_the_templates_own(): void
+    {
+        $template = Template::factory()->create(['html_content' => '<html><body><h1>{title}</h1></body></html>']);
+        $certificate = Certificate::factory()->create(['template_id' => $template->id]);
+
+        $html = app(CertificateRenderService::class)->renderHtml($certificate);
+
+        preg_match('/<div style="([^"]*)">Verified by proudify\.in<\/div>/', $html, $matches);
+
+        $this->assertNotEmpty($matches, 'Watermark div not found.');
+        $this->assertStringNotContainsString('font-family', $matches[1]);
+        $this->assertStringContainsString('font-size:11px', $matches[1]);
+    }
+
+    public function test_watermark_corner_is_detected_once_and_cached_on_the_template(): void
+    {
+        // Variance (not darkness) is what the detector measures - a solid
+        // color fill is perfectly uniform and would read as "empty" same
+        // as blank white, so this needs real content (text has contrasting
+        // edges) specifically in the top corners; the bottom stays blank.
+        $template = Template::factory()->create([
+            'watermark_corner' => null,
+            'orientation' => 'landscape',
+            'html_content' => <<<'HTML'
+                <html><body style="margin:0;">
+                    <div style="position:absolute;top:5px;left:5px;font-size:36px;font-weight:bold;">BUSY TOP LEFT CONTENT HERE XXXX</div>
+                    <div style="position:absolute;top:5px;right:5px;font-size:36px;font-weight:bold;">BUSY TOP RIGHT CONTENT HERE XXXX</div>
+                </body></html>
+                HTML,
+        ]);
+        $certificate = Certificate::factory()->create(['template_id' => $template->id]);
+
+        app(CertificateRenderService::class)->renderHtml($certificate);
+
+        $template->refresh();
+        $this->assertContains($template->watermark_corner, ['bottom-left', 'bottom-right']);
+
+        // Second render must not re-trigger detection - it reads the now-
+        // cached value. If this were slow (seconds, a real Chrome launch),
+        // that alone would indicate the cache isn't being used.
+        $start = microtime(true);
+        app(CertificateRenderService::class)->renderHtml($certificate->fresh());
+        $this->assertLessThan(1.0, microtime(true) - $start, 'Second render should not re-run corner detection.');
+    }
+
 }
