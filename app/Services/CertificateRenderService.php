@@ -50,6 +50,7 @@ class CertificateRenderService
         $html = $this->replaceImageSrcPlaceholder($html, 'qrcode', $qrcodeDataUri);
         $html = $this->replaceImageSrcPlaceholder($html, 'signature', $signatureDataUri);
         $html = $this->applyCompanyLogoSrcReplacements($html, (array) $certificate->company_logos);
+        $html = $this->applyCustomImageFieldReplacements($html, $template, (array) $certificate->custom_image_fields);
 
         return strtr($html, [
             '{qrcode}' => $qrcodeImg,
@@ -199,6 +200,29 @@ class CertificateRenderService
             $firstLogo = $logos[0];
             $firstPath = is_string($firstLogo) ? $firstLogo : ($firstLogo['path'] ?? $firstLogo['url'] ?? null);
             $html = $this->replaceImageSrcPlaceholder($html, 'company_logo', $this->imageDataUri($firstPath));
+        }
+
+        return $html;
+    }
+
+    /**
+     * Only replaces tokens the template's own custom_field_schema declares
+     * as type=image — the schema is the sole authority on which {tokens}
+     * a certificate's custom_image_fields may fill, so a stray key in the
+     * data that isn't in the schema is silently ignored rather than opening
+     * an arbitrary-token injection surface into the template HTML.
+     *
+     * @param  array<string, mixed>  $customImageFields
+     */
+    private function applyCustomImageFieldReplacements(string $html, Template $template, array $customImageFields): string
+    {
+        foreach ($template->editableCustomFields() as $field) {
+            if ($field['type'] !== 'image') {
+                continue;
+            }
+
+            $path = $customImageFields[$field['key']] ?? null;
+            $html = $this->replaceImageSrcPlaceholder($html, $field['key'], $this->imageDataUri(is_string($path) ? $path : null));
         }
 
         return $html;

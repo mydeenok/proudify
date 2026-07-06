@@ -20,6 +20,7 @@ class Template extends Model
         'category',
         'html_content',
         'canvas_json',
+        'custom_field_schema',
         'thumbnail_path',
         'page_format',
         'orientation',
@@ -34,7 +35,19 @@ class Template extends Model
             'is_active' => 'boolean',
             'is_exclusive' => 'boolean',
             'canvas_json' => 'array',
+            'custom_field_schema' => 'array',
         ];
+    }
+
+    /**
+     * @return array<int, array{key: string, label: string, type: string, required: bool}>
+     */
+    public function editableCustomFields(): array
+    {
+        return array_values(array_filter(
+            (array) $this->custom_field_schema,
+            fn ($field) => is_array($field) && isset($field['key'], $field['type'])
+        ));
     }
 
     protected static function booted(): void

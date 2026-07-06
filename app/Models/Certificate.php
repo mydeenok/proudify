@@ -28,6 +28,7 @@ class Certificate extends Model
         'date_of_issue',
         'date_of_expiry',
         'custom_fields',
+        'custom_image_fields',
         'company_logos',
         'signature_path',
     ];
@@ -38,6 +39,7 @@ class Certificate extends Model
             'date_of_issue' => 'date',
             'date_of_expiry' => 'date',
             'custom_fields' => 'array',
+            'custom_image_fields' => 'array',
             'company_logos' => 'array',
             'revoked_at' => 'datetime',
         ];
