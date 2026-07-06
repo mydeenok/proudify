@@ -66,6 +66,7 @@ class CertificateController extends Controller
         return view('certificates.create', [
             'template' => $template,
             'initialPreviewHtml' => $initialPreviewHtml,
+            'customFields' => $template->editableCustomFields(),
         ]);
     }
 
@@ -77,14 +78,13 @@ class CertificateController extends Controller
      */
     public function preview(Request $request, CertificateRenderService $renderService): View
     {
-        $validated = $request->validate($this->previewValidationRules());
-
-        $template = Template::active()->findOrFail($validated['template_id']);
+        [$template, $validated] = $this->resolveTemplateAndValidatePreview($request);
 
         $html = $renderService->renderPreviewHtml($template, $request->user(), $validated);
 
         return view('certificates.preview', [
             'template' => $template,
+            'customFields' => $template->editableCustomFields(),
             'formData' => $validated,
             'initialHtml' => $html,
         ]);
@@ -97,9 +97,7 @@ class CertificateController extends Controller
      */
     public function previewRender(Request $request, CertificateRenderService $renderService): Response
     {
-        $validated = $request->validate($this->previewValidationRules());
-
-        $template = Template::active()->findOrFail($validated['template_id']);
+        [$template, $validated] = $this->resolveTemplateAndValidatePreview($request);
 
         $html = $renderService->renderPreviewHtml($template, $request->user(), $validated);
 
@@ -107,11 +105,29 @@ class CertificateController extends Controller
     }
 
     /**
+     * The custom-field validation rules depend on the template's own
+     * schema, so template_id is resolved first (its own tiny validation
+     * pass) before the rest of the request can be validated against rules
+     * built from that specific template.
+     *
+     * @return array{0: Template, 1: array<string, mixed>}
+     */
+    private function resolveTemplateAndValidatePreview(Request $request): array
+    {
+        $templateId = $request->validate(['template_id' => ['required', 'exists:templates,id']])['template_id'];
+        $template = Template::active()->findOrFail($templateId);
+
+        $validated = $request->validate($this->previewValidationRules($template));
+
+        return [$template, $validated];
+    }
+
+    /**
      * @return array<string, array<int, string>>
      */
-    private function previewValidationRules(): array
+    private function previewValidationRules(Template $template): array
     {
-        return [
+        $rules = [
             'template_id' => ['required', 'exists:templates,id'],
             'title' => ['nullable', 'string', 'max:150'],
             'recipient_name' => ['nullable', 'string', 'max:150'],
@@ -119,21 +135,25 @@ class CertificateController extends Controller
             'date_of_issue' => ['nullable', 'date'],
             'date_of_expiry' => ['nullable', 'date'],
         ];
+
+        // Image-type custom fields have no uploaded file to preview before
+        // a Certificate row exists, so only text fields are validated here
+        // — see CertificateRenderService::stripUnfilledCustomImagePlaceholders.
+        foreach ($template->editableCustomFields() as $field) {
+            if ($field['type'] === 'text') {
+                $rules["custom_fields.{$field['key']}"] = ['nullable', 'string', 'max:500'];
+            }
+        }
+
+        return $rules;
     }
 
     public function store(Request $request, IssueSingleCertificateAction $action): RedirectResponse
     {
-        $validated = $request->validate([
-            'template_id' => ['required', 'exists:templates,id'],
-            'title' => ['required', 'string', 'max:150'],
-            'recipient_name' => ['required', 'string', 'max:150'],
-            'recipient_email' => ['required', 'email', 'max:255'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'date_of_issue' => ['required', 'date'],
-            'date_of_expiry' => ['nullable', 'date', 'after:date_of_issue'],
-        ]);
+        $template = Template::active()->findOrFail($request->integer('template_id'));
 
-        $template = Template::active()->findOrFail($validated['template_id']);
+        $validated = $request->validate($this->storeValidationRules($template));
+        $validated['custom_image_fields'] = $this->storeUploadedCustomImages($request, $template);
 
         try {
             $certificate = $action->execute($request->user(), $template, $validated);
@@ -142,6 +162,59 @@ class CertificateController extends Controller
         }
 
         return redirect()->route('certificates.show', $certificate)->with('status', 'Certificate is being generated — it will be ready in a few moments.');
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    private function storeValidationRules(Template $template): array
+    {
+        $rules = [
+            'template_id' => ['required', 'exists:templates,id'],
+            'title' => ['required', 'string', 'max:150'],
+            'recipient_name' => ['required', 'string', 'max:150'],
+            'recipient_email' => ['required', 'email', 'max:255'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'date_of_issue' => ['required', 'date'],
+            'date_of_expiry' => ['nullable', 'date', 'after:date_of_issue'],
+        ];
+
+        foreach ($template->editableCustomFields() as $field) {
+            $presence = $field['required'] ? 'required' : 'nullable';
+
+            $rules[$field['type'] === 'image' ? "custom_image_fields.{$field['key']}" : "custom_fields.{$field['key']}"] = $field['type'] === 'image'
+                ? [$presence, 'image', 'max:2048']
+                : [$presence, 'string', 'max:500'];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Uploaded custom-field images are stored the same way profile
+     * signature/logo uploads already are (plain public-disk storage, no
+     * media-library dependency) — see ProfileController. Re-derives the
+     * key => path map fresh from disk rather than trusting $validated's
+     * raw UploadedFile instances, since Certificate::custom_image_fields
+     * stores paths, not file objects.
+     *
+     * @return array<string, string>
+     */
+    private function storeUploadedCustomImages(Request $request, Template $template): array
+    {
+        $paths = [];
+
+        foreach ($template->editableCustomFields() as $field) {
+            if ($field['type'] !== 'image') {
+                continue;
+            }
+
+            if ($file = $request->file("custom_image_fields.{$field['key']}")) {
+                $paths[$field['key']] = $file->store('certificates/custom-fields', 'public');
+            }
+        }
+
+        return $paths;
     }
 
     public function show(Request $request, Certificate $certificate): View

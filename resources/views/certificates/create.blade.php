@@ -26,7 +26,7 @@
 
     <div class="max-w-[1440px] mx-auto w-full p-margin flex flex-col lg:flex-row gap-margin">
         <div class="w-full lg:w-5/12 flex flex-col gap-xl">
-            <form method="POST" action="{{ route('certificates.store') }}" class="card-surface p-lg bento-shadow-sm space-y-md">
+            <form method="POST" action="{{ route('certificates.store') }}" enctype="multipart/form-data" class="card-surface p-lg bento-shadow-sm space-y-md">
                 @csrf
                 <input type="hidden" id="certificate_template_id" name="template_id" value="{{ $template->id }}">
 
@@ -74,6 +74,44 @@
                         <x-input-error :messages="$errors->get('date_of_expiry')" />
                     </div>
                 </div>
+
+                @if (count($customFields))
+                    <div class="pt-md border-t border-outline-variant space-y-md">
+                        <h2 class="font-headline-md text-headline-md text-on-surface">Template Fields</h2>
+
+                        @foreach ($customFields as $field)
+                            @php
+                                $customFieldOldValue = old('custom_fields.'.$field['key']);
+                                $customFieldErrors = $errors->get(($field['type'] === 'image' ? 'custom_image_fields.' : 'custom_fields.').$field['key']);
+                            @endphp
+                            <div>
+                                <x-input-label for="custom-field-{{ $field['key'] }}" :value="$field['label']" />
+
+                                @if ($field['type'] === 'image')
+                                    <input
+                                        id="custom-field-{{ $field['key'] }}"
+                                        type="file"
+                                        name="custom_image_fields[{{ $field['key'] }}]"
+                                        accept="image/*"
+                                        data-custom-image-field
+                                        {{ $field['required'] ? 'required' : '' }}
+                                        class="form-input py-xs"
+                                    />
+                                @else
+                                    <x-text-input
+                                        id="custom-field-{{ $field['key'] }}"
+                                        type="text"
+                                        name="custom_fields[{{ $field['key'] }}]"
+                                        data-custom-text-field="{{ $field['key'] }}"
+                                        :value="$customFieldOldValue"
+                                        :required="$field['required']"
+                                    />
+                                @endif
+                                <x-input-error :messages="$customFieldErrors" />
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
 
                 <div class="pt-md border-t border-outline-variant flex gap-sm">
                     <a href="{{ route('templates.index') }}" class="btn-secondary flex-1">Cancel</a>

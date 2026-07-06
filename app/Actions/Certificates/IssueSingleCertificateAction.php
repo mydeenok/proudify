@@ -35,7 +35,7 @@ class IssueSingleCertificateAction
     ) {}
 
     /**
-     * @param  array{title: string, recipient_name: string, recipient_email: string, description?: ?string, date_of_issue: string, date_of_expiry?: ?string, custom_fields?: array}  $data
+     * @param  array{title: string, recipient_name: string, recipient_email: string, description?: ?string, date_of_issue: string, date_of_expiry?: ?string, custom_fields?: array, custom_image_fields?: array}  $data
      */
     public function execute(User $issuer, Template $template, array $data, ?CertificateBatch $batch = null): Certificate
     {
@@ -66,6 +66,7 @@ class IssueSingleCertificateAction
             'date_of_issue' => $data['date_of_issue'],
             'date_of_expiry' => $data['date_of_expiry'] ?? null,
             'custom_fields' => $data['custom_fields'] ?? null,
+            'custom_image_fields' => $data['custom_image_fields'] ?? null,
             'company_logos' => $issuer->org_logos,
             'signature_path' => $issuer->signature_path,
         ]);

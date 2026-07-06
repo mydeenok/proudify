@@ -122,4 +122,30 @@ class PreviewCertificateTest extends TestCase
         $this->post(route('certificates.preview'), ['template_id' => $template->id])
             ->assertRedirect(route('login'));
     }
+
+    public function test_preview_fills_a_custom_text_field_and_strips_an_unfilled_custom_image_field(): void
+    {
+        Subscription::factory()->free()->create();
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'html_content' => '<h1>{course_name}</h1><img src="{course_logo}" alt="Logo">',
+            'custom_field_schema' => [
+                ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => false],
+                ['key' => 'course_logo', 'label' => 'Course Logo', 'type' => 'image', 'required' => false],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('certificates.preview.render'), [
+            'template_id' => $template->id,
+            'custom_fields' => ['course_name' => 'Advanced Laravel'],
+        ]);
+
+        $response->assertOk();
+        $html = $response->getContent();
+
+        $this->assertStringContainsString('Advanced Laravel', $html);
+        $this->assertStringNotContainsString('{course_name}', $html);
+        $this->assertStringNotContainsString('{course_logo}', $html);
+        $this->assertStringNotContainsString('<img', $html);
+    }
 }

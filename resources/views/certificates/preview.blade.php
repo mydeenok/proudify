@@ -35,8 +35,28 @@
                     </div>
                 </div>
 
+                @if (count($customFields))
+                    <div class="pt-md border-t border-outline-variant space-y-md">
+                        <h2 class="font-headline-md text-headline-md text-on-surface">Template Fields</h2>
+
+                        @foreach ($customFields as $field)
+                            @if ($field['type'] === 'text')
+                                <div>
+                                    <x-input-label for="preview_custom_{{ $field['key'] }}" :value="$field['label']" />
+                                    <x-text-input
+                                        id="preview_custom_{{ $field['key'] }}"
+                                        type="text"
+                                        name="custom_fields[{{ $field['key'] }}]"
+                                        value="{{ $formData['custom_fields'][$field['key']] ?? '' }}"
+                                    />
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                @endif
+
                 <p class="font-body-sm text-body-sm text-on-surface-variant/70">
-                    This is a sample preview — the QR code links to a placeholder, not a real verification page. Your uploaded signature and organization logo (if any) render for real.
+                    This is a sample preview — the QR code links to a placeholder, not a real verification page. Your uploaded signature and organization logo (if any) render for real. Image-type template fields aren't shown here until the certificate is actually issued.
                 </p>
             </form>
         </div>

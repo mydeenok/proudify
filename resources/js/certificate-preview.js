@@ -21,6 +21,12 @@ export function initCertificateLivePreview() {
         date_of_expiry: document.getElementById('date_of_expiry'),
     };
 
+    // Admin-defined custom text fields (see Template::custom_field_schema) —
+    // collected by attribute rather than a fixed id list, since the set of
+    // fields varies per template. Image-type custom fields have nothing to
+    // preview live before upload, so they're intentionally left out here.
+    const customTextFields = Array.from(document.querySelectorAll('[data-custom-text-field]'));
+
     const canvas = root.querySelector('[data-preview="canvas"]');
     const zoomIn = document.getElementById('preview-zoom-in');
     const zoomOut = document.getElementById('preview-zoom-out');
@@ -34,20 +40,26 @@ export function initCertificateLivePreview() {
         if (loading) loading.style.display = 'flex';
 
         try {
+            const body = new URLSearchParams({
+                template_id: templateId ?? '',
+                title: fields.title?.value ?? '',
+                recipient_name: fields.recipient_name?.value ?? '',
+                description: fields.description?.value ?? '',
+                date_of_issue: fields.date_of_issue?.value ?? '',
+                date_of_expiry: fields.date_of_expiry?.value ?? '',
+            });
+
+            customTextFields.forEach((el) => {
+                body.append(`custom_fields[${el.dataset.customTextField}]`, el.value ?? '');
+            });
+
             const response = await fetch('/certificates/preview/render', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
                     Accept: 'text/html',
                 },
-                body: new URLSearchParams({
-                    template_id: templateId ?? '',
-                    title: fields.title?.value ?? '',
-                    recipient_name: fields.recipient_name?.value ?? '',
-                    description: fields.description?.value ?? '',
-                    date_of_issue: fields.date_of_issue?.value ?? '',
-                    date_of_expiry: fields.date_of_expiry?.value ?? '',
-                }),
+                body,
             });
 
             if (response.ok) {
@@ -67,7 +79,7 @@ export function initCertificateLivePreview() {
         }
     };
 
-    Object.values(fields).forEach((el) => el?.addEventListener('input', () => {
+    [...Object.values(fields), ...customTextFields].forEach((el) => el?.addEventListener('input', () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(rerender, 400);
     }));
@@ -83,16 +95,17 @@ export function initCertificateLivePreview() {
 
     applyZoom();
 
-    initPreviewLaunch(fields);
+    initPreviewLaunch(fields, customTextFields);
 }
 
 /**
  * "Preview Certificate" button — mirrors whatever's currently typed into
  * the create-certificate form into a hidden target="_blank" form so the
  * standalone preview page opens in a new tab with the same values already
- * filled in.
+ * filled in. Custom text fields are appended as hidden inputs built fresh
+ * each click (rather than fixed markup), since the set varies per template.
  */
-function initPreviewLaunch(fields) {
+function initPreviewLaunch(fields, customTextFields) {
     const button = document.getElementById('preview-certificate-btn');
     const launchForm = document.getElementById('preview-launch-form');
     if (!button || !launchForm) return;
@@ -103,6 +116,17 @@ function initPreviewLaunch(fields) {
         document.getElementById('preview_launch_description').value = fields.description?.value ?? '';
         document.getElementById('preview_launch_date_of_issue').value = fields.date_of_issue?.value ?? '';
         document.getElementById('preview_launch_date_of_expiry').value = fields.date_of_expiry?.value ?? '';
+
+        launchForm.querySelectorAll('[data-custom-field-hidden]').forEach((el) => el.remove());
+        customTextFields.forEach((el) => {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = `custom_fields[${el.dataset.customTextField}]`;
+            hidden.value = el.value ?? '';
+            hidden.dataset.customFieldHidden = 'true';
+            launchForm.appendChild(hidden);
+        });
+
         launchForm.submit();
     });
 }

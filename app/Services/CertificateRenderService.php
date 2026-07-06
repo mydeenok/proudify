@@ -65,7 +65,7 @@ class CertificateRenderService
      * instead of a real one; signature and logos ARE known ahead of issuance
      * (they live on the issuing user), so those render for real.
      *
-     * @param  array{title?: ?string, recipient_name?: ?string, description?: ?string, date_of_issue?: ?string, date_of_expiry?: ?string}  $formData
+     * @param  array{title?: ?string, recipient_name?: ?string, description?: ?string, date_of_issue?: ?string, date_of_expiry?: ?string, custom_fields?: array<string, string>}  $formData
      */
     public function renderPreviewHtml(Template $template, User $issuer, array $formData): string
     {
@@ -86,6 +86,10 @@ class CertificateRenderService
             '{verification_code}' => 'SAMPLE',
         ];
 
+        foreach ((array) ($formData['custom_fields'] ?? []) as $key => $value) {
+            $replacements["{{$key}}"] = e((string) $value);
+        }
+
         $replacements = array_merge($replacements, $this->companyLogoTokenReplacements((array) $issuer->org_logos));
 
         $html = strtr($template->html_content, $replacements);
@@ -93,11 +97,33 @@ class CertificateRenderService
         $html = $this->replaceImageSrcPlaceholder($html, 'qrcode', $qrcodeDataUri);
         $html = $this->replaceImageSrcPlaceholder($html, 'signature', $signatureDataUri);
         $html = $this->applyCompanyLogoSrcReplacements($html, (array) $issuer->org_logos);
+        $html = $this->stripUnfilledCustomImagePlaceholders($html, $template);
 
         return strtr($html, [
             '{qrcode}' => $qrcodeImg,
             '{signature}' => $signatureImg,
         ]);
+    }
+
+    /**
+     * The live "typing" preview has no uploaded file to render yet for any
+     * custom image field (there's no Certificate row to attach an upload
+     * to), so its {token} is removed entirely rather than left as a broken
+     * `<img>` — a missing preview thumbnail reads better than a broken-image
+     * icon in a panel that's meant to build confidence in the design.
+     */
+    private function stripUnfilledCustomImagePlaceholders(string $html, Template $template): string
+    {
+        foreach ($template->editableCustomFields() as $field) {
+            if ($field['type'] !== 'image') {
+                continue;
+            }
+
+            $pattern = '/<img\b[^>]*\bsrc=(["\'])\{'.preg_quote($field['key'], '/').'\}\1[^>]*>/i';
+            $html = preg_replace($pattern, '', $html) ?? $html;
+        }
+
+        return $html;
     }
 
     public function renderPdf(Certificate $certificate): string

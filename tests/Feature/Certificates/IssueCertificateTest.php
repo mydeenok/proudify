@@ -12,7 +12,9 @@ use App\Models\Template;
 use App\Models\User;
 use App\Models\UserSubscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class IssueCertificateTest extends TestCase
@@ -198,5 +200,60 @@ class IssueCertificateTest extends TestCase
             GenerateCertificatePdfJob::class,
             ConvertCertificatePdfToImageJob::class,
         ]);
+    }
+
+    public function test_a_certificate_can_be_issued_with_custom_text_and_image_fields(): void
+    {
+        Bus::fake();
+        Storage::fake('public');
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'custom_field_schema' => [
+                ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => true],
+                ['key' => 'course_logo', 'label' => 'Course Logo', 'type' => 'image', 'required' => false],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate of Excellence',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+            'custom_fields' => ['course_name' => 'Advanced Laravel'],
+            'custom_image_fields' => ['course_logo' => UploadedFile::fake()->image('logo.png')],
+        ]);
+
+        $certificate = Certificate::firstOrFail();
+        $response->assertRedirect(route('certificates.show', $certificate));
+
+        $this->assertSame('Advanced Laravel', $certificate->custom_fields['course_name']);
+        $this->assertNotEmpty($certificate->custom_image_fields['course_logo']);
+        Storage::disk('public')->assertExists($certificate->custom_image_fields['course_logo']);
+    }
+
+    public function test_a_required_custom_text_field_is_validated(): void
+    {
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'custom_field_schema' => [
+                ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => true],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate of Excellence',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+        ]);
+
+        $response->assertSessionHasErrors('custom_fields.course_name');
+        $this->assertSame(0, Certificate::count());
     }
 }
