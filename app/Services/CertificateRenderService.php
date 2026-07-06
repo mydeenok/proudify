@@ -178,9 +178,20 @@ class CertificateRenderService
      * 'failed' is what surfaces the existing regenerate/retry action
      * instead of turning a transient Chrome/Imagick hiccup into a hard
      * error on the whole request.
+     *
+     * This now runs inside the web request instead of a queue worker
+     * (whose process-level timeout was previously configured separately),
+     * so it explicitly raises the PHP execution time limit here - a
+     * production PHP-FPM default (often 30s) could otherwise truncate a
+     * slow cold-Chrome render before the local CLI dev server (unlimited
+     * by default) would ever reveal the problem. Reuses job_timeout so
+     * there's one config value for "how long we tolerate generation
+     * taking", not two drifting apart.
      */
     public function generateAssetsSynchronously(Certificate $certificate): void
     {
+        set_time_limit((int) config('certificates.job_timeout'));
+
         try {
             if (! $certificate->qr_code_path) {
                 $certificate->forceFill(['qr_code_path' => $this->qrCodeService->generate($certificate)])->save();
