@@ -72,7 +72,7 @@ $initialQrUrl = $certificate->qr_code_path
                 this.poll();
             },
         }"
-        x-init="poll()"
+        x-init="if (! ready && generationStatus !== 'failed') poll()"
     >
         <div class="lg:col-span-8">
             <div class="glass-panel p-sm rounded-xl overflow-hidden shadow-lg bento-shadow">

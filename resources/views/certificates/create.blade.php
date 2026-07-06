@@ -30,7 +30,14 @@
 
     <div class="max-w-[1440px] mx-auto w-full p-margin flex flex-col lg:flex-row gap-margin">
         <div class="w-full lg:w-5/12 flex flex-col gap-xl">
-            <form method="POST" action="{{ route('certificates.store') }}" enctype="multipart/form-data" class="card-surface p-lg bento-shadow-sm space-y-md">
+            <form
+                method="POST"
+                action="{{ route('certificates.store') }}"
+                enctype="multipart/form-data"
+                class="card-surface p-lg bento-shadow-sm space-y-md"
+                x-data="{ submitting: false }"
+                x-on:submit="submitting = true"
+            >
                 @csrf
                 <input type="hidden" id="certificate_template_id" name="template_id" value="{{ $template->id }}">
 
@@ -119,9 +126,11 @@
 
                 <div class="pt-md border-t border-outline-variant flex gap-sm">
                     <a href="{{ route('templates.index') }}" class="btn-secondary flex-1">Cancel</a>
-                    <x-primary-button class="btn-primary flex-1">
-                        Issue Certificate
-                        <span class="material-symbols-outlined text-[18px]">send</span>
+                    <x-primary-button class="btn-primary flex-1" x-bind:disabled="submitting">
+                        <span x-show="!submitting">Issue Certificate</span>
+                        <span x-show="!submitting" class="material-symbols-outlined text-[18px]">send</span>
+                        <span x-show="submitting" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                        <span x-show="submitting">Issuing certificate…</span>
                     </x-primary-button>
                 </div>
             </form>

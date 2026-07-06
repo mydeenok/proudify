@@ -18,7 +18,14 @@
         ];
     @endphp
 
-    <form method="POST" action="{{ route('certificates.store') }}" enctype="multipart/form-data" class="max-w-[900px] mx-auto w-full p-margin space-y-md">
+    <form
+        method="POST"
+        action="{{ route('certificates.store') }}"
+        enctype="multipart/form-data"
+        class="max-w-[900px] mx-auto w-full p-margin space-y-md"
+        x-data="{ submitting: false }"
+        x-on:submit="submitting = true"
+    >
         @csrf
         <input type="hidden" name="template_id" value="{{ $template->id }}">
 
@@ -28,9 +35,11 @@
                 <x-text-input id="canvas_recipient_email" name="recipient_email" type="email" required placeholder="jane@example.com" :value="old('recipient_email')" />
                 <x-input-error :messages="$errors->get('recipient_email')" />
             </div>
-            <x-primary-button class="btn-primary">
-                Issue Certificate
-                <span class="material-symbols-outlined text-[18px]">send</span>
+            <x-primary-button class="btn-primary" x-bind:disabled="submitting">
+                <span x-show="!submitting">Issue Certificate</span>
+                <span x-show="!submitting" class="material-symbols-outlined text-[18px]">send</span>
+                <span x-show="submitting" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                <span x-show="submitting">Issuing certificate…</span>
             </x-primary-button>
         </div>
 
