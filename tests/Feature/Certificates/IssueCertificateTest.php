@@ -1,0 +1,202 @@
+<?php
+
+namespace Tests\Feature\Certificates;
+
+use App\Jobs\Certificates\ConvertCertificatePdfToImageJob;
+use App\Jobs\Certificates\GenerateCertificatePdfJob;
+use App\Jobs\Certificates\GenerateCertificateQrCodeJob;
+use App\Jobs\Certificates\SendCertificateIssuedEmailJob;
+use App\Models\Certificate;
+use App\Models\Subscription;
+use App\Models\Template;
+use App\Models\User;
+use App\Models\UserSubscription;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Tests\TestCase;
+
+class IssueCertificateTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_a_user_can_issue_a_single_certificate(): void
+    {
+        Bus::fake();
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+
+        $response = $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate of Excellence',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+        ]);
+
+        $certificate = Certificate::firstOrFail();
+
+        $response->assertRedirect(route('certificates.show', $certificate));
+        $this->assertSame($user->id, $certificate->user_id);
+        $this->assertNotEmpty($certificate->verification_code);
+        $this->assertNotEmpty($certificate->verification_signature);
+        $this->assertSame('active', $certificate->status);
+
+        Bus::assertChained([
+            GenerateCertificateQrCodeJob::class,
+            GenerateCertificatePdfJob::class,
+            ConvertCertificatePdfToImageJob::class,
+            SendCertificateIssuedEmailJob::class,
+        ]);
+    }
+
+    public function test_only_active_templates_can_be_used(): void
+    {
+        $user = User::factory()->create();
+        $draftTemplate = Template::factory()->create(['is_active' => false]);
+
+        $this->actingAs($user)
+            ->get(route('certificates.create', ['template' => $draftTemplate->id]))
+            ->assertNotFound();
+    }
+
+    public function test_a_user_cannot_view_another_users_certificate(): void
+    {
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $certificate = Certificate::factory()->create(['user_id' => $owner->id]);
+
+        $this->actingAs($intruder)
+            ->get(route('certificates.show', $certificate))
+            ->assertForbidden();
+    }
+
+    public function test_an_admin_can_open_the_template_library_to_create_a_certificate(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create();
+
+        $this->actingAs($admin)
+            ->get(route('templates.index'))
+            ->assertOk()
+            ->assertSee('Template Library');
+
+        $this->actingAs($admin)
+            ->get(route('certificates.create', ['template' => $template->id]))
+            ->assertOk()
+            ->assertSee('Create New Certificate');
+    }
+
+    public function test_an_admin_can_view_any_users_certificate(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $owner = User::factory()->create();
+        $certificate = Certificate::factory()->create(['user_id' => $owner->id]);
+
+        $this->actingAs($admin)
+            ->get(route('certificates.show', $certificate))
+            ->assertOk();
+    }
+
+    public function test_a_user_with_no_subscription_auto_claims_the_free_plan(): void
+    {
+        Bus::fake();
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+
+        $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+        ]);
+
+        $subscription = UserSubscription::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame(1, $subscription->certificates_used);
+        $this->assertSame(1, $subscription->users_used);
+    }
+
+    public function test_a_user_who_exhausted_their_quota_is_redirected_to_pricing(): void
+    {
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+        $subscription = Subscription::factory()->create();
+        UserSubscription::factory()->exhausted()->for($user)->for($subscription)->create();
+
+        $response = $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+        ]);
+
+        $response->assertRedirect(route('pricing'));
+        $this->assertSame(0, Certificate::count());
+    }
+
+    public function test_admins_issue_without_any_quota_check(): void
+    {
+        Bus::fake();
+
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create();
+
+        $response = $this->actingAs($admin)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+        ]);
+
+        $certificate = Certificate::firstOrFail();
+        $response->assertRedirect(route('certificates.show', $certificate));
+        $this->assertNull($certificate->user_subscription_id);
+    }
+
+    public function test_certificate_status_endpoint_returns_generation_payload(): void
+    {
+        $user = User::factory()->create();
+        $certificate = Certificate::factory()->create([
+            'user_id' => $user->id,
+            'verification_code' => 'ABC12345',
+            'qr_code_path' => 'certificates/1/qr/test.png',
+            'pdf_path' => 'certificates/1/test.pdf',
+            'image_path' => 'certificates/1/test.jpg',
+            'image_generation_status' => 'completed',
+        ]);
+
+        $response = $this->actingAs($user)->getJson(route('certificates.status', $certificate));
+
+        $response->assertOk()
+            ->assertJsonPath('ready', true)
+            ->assertJsonPath('verification_code', 'ABC12345')
+            ->assertJsonPath('display_status', 'active');
+    }
+
+    public function test_certificate_regenerate_dispatches_asset_jobs(): void
+    {
+        Bus::fake();
+
+        $user = User::factory()->create();
+        $certificate = Certificate::factory()->create([
+            'user_id' => $user->id,
+            'qr_code_path' => 'certificates/1/qr/test.png',
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('certificates.regenerate', $certificate))
+            ->assertOk()
+            ->assertJsonPath('image_generation_status', 'processing');
+
+        Bus::assertChained([
+            GenerateCertificatePdfJob::class,
+            ConvertCertificatePdfToImageJob::class,
+        ]);
+    }
+}
