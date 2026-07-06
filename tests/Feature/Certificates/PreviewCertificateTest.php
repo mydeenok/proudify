@@ -148,4 +148,27 @@ class PreviewCertificateTest extends TestCase
         $this->assertStringNotContainsString('{course_logo}', $html);
         $this->assertStringNotContainsString('<img', $html);
     }
+
+    public function test_a_script_injection_attempt_in_a_custom_field_is_escaped_in_the_live_preview(): void
+    {
+        Subscription::factory()->free()->create();
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'html_content' => '<h1>{course_name}</h1>',
+            'custom_field_schema' => [
+                ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => false],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('certificates.preview.render'), [
+            'template_id' => $template->id,
+            'custom_fields' => ['course_name' => '<script>alert(1)</script>'],
+        ]);
+
+        $response->assertOk();
+        $html = $response->getContent();
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
 }

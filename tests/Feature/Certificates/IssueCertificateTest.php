@@ -256,4 +256,81 @@ class IssueCertificateTest extends TestCase
         $response->assertSessionHasErrors('custom_fields.course_name');
         $this->assertSame(0, Certificate::count());
     }
+
+    public function test_a_script_injection_attempt_in_a_custom_text_field_is_escaped_not_executed(): void
+    {
+        Bus::fake();
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'html_content' => '<h1>{course_name}</h1>',
+            'custom_field_schema' => [
+                ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => false],
+            ],
+        ]);
+
+        $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate of Excellence',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+            'custom_fields' => ['course_name' => '<script>alert(document.cookie)</script>'],
+        ]);
+
+        $certificate = Certificate::firstOrFail();
+        $html = app(\App\Services\CertificateRenderService::class)->renderHtml($certificate);
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function test_a_custom_image_field_rejects_a_non_image_file(): void
+    {
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'custom_field_schema' => [
+                ['key' => 'course_logo', 'label' => 'Course Logo', 'type' => 'image', 'required' => false],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+            'custom_image_fields' => ['course_logo' => UploadedFile::fake()->create('shell.php', 10, 'application/x-php')],
+        ]);
+
+        $response->assertSessionHasErrors('custom_image_fields.course_logo');
+        $this->assertSame(0, Certificate::count());
+    }
+
+    public function test_a_custom_image_field_rejects_an_oversized_file(): void
+    {
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'custom_field_schema' => [
+                ['key' => 'course_logo', 'label' => 'Course Logo', 'type' => 'image', 'required' => false],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+            'custom_image_fields' => ['course_logo' => UploadedFile::fake()->image('logo.png')->size(3000)],
+        ]);
+
+        $response->assertSessionHasErrors('custom_image_fields.course_logo');
+        $this->assertSame(0, Certificate::count());
+    }
 }
