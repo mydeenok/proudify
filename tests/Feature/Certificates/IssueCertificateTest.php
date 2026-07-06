@@ -74,6 +74,21 @@ class IssueCertificateTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_template_with_no_custom_field_schema_shows_no_template_fields_section(): void
+    {
+        // Every template created before this feature (or never opened in
+        // the builder's custom-field tools) has custom_field_schema = null
+        // - the create form must render exactly as it did before, with no
+        // migration or per-template opt-in step required.
+        $user = User::factory()->create();
+        $template = Template::factory()->create(['custom_field_schema' => null]);
+
+        $this->actingAs($user)
+            ->get(route('certificates.create', ['template' => $template->id]))
+            ->assertOk()
+            ->assertDontSee('Template Fields');
+    }
+
     public function test_an_admin_can_open_the_template_library_to_create_a_certificate(): void
     {
         $admin = User::factory()->admin()->create();
