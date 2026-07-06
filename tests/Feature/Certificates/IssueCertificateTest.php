@@ -333,4 +333,66 @@ class IssueCertificateTest extends TestCase
         $response->assertSessionHasErrors('custom_image_fields.course_logo');
         $this->assertSame(0, Certificate::count());
     }
+
+    public function test_a_custom_field_key_not_declared_in_the_templates_schema_is_silently_dropped(): void
+    {
+        Bus::fake();
+        Storage::fake('public');
+        Subscription::factory()->free()->create();
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create([
+            'custom_field_schema' => [
+                ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => false],
+            ],
+        ]);
+
+        $this->actingAs($user)->post('/certificates', [
+            'template_id' => $template->id,
+            'title' => 'Certificate',
+            'recipient_name' => 'Jane Doe',
+            'recipient_email' => 'jane@example.com',
+            'date_of_issue' => now()->toDateString(),
+            'custom_fields' => [
+                'course_name' => 'Legitimate value',
+                'not_declared_on_this_template' => 'Attacker-supplied key',
+            ],
+            'custom_image_fields' => [
+                'also_not_declared' => UploadedFile::fake()->image('sneaky.png'),
+            ],
+        ]);
+
+        $certificate = Certificate::firstOrFail();
+
+        $this->assertSame(['course_name' => 'Legitimate value'], $certificate->custom_fields);
+        $this->assertSame([], $certificate->custom_image_fields);
+        Storage::disk('public')->assertDirectoryEmpty('certificates/custom-fields');
+    }
+
+    public function test_bulk_issued_certificates_are_unaffected_by_the_new_custom_image_fields_column(): void
+    {
+        Bus::fake();
+
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create();
+        $batch = \App\Models\CertificateBatch::factory()->create(['user_id' => $admin->id, 'template_id' => $template->id]);
+
+        // Bulk-upload rows never carry a custom_image_fields key at all (see
+        // BulkUploadIngestService) - the Action must default it safely
+        // rather than assume every caller now supplies it.
+        $certificate = app(\App\Actions\Certificates\IssueSingleCertificateAction::class)->execute(
+            $admin,
+            $template,
+            [
+                'title' => 'Bulk Certificate',
+                'recipient_name' => 'Bulk Recipient',
+                'recipient_email' => 'bulk@example.com',
+                'date_of_issue' => now()->toDateString(),
+            ],
+            $batch,
+        );
+
+        $this->assertNull($certificate->custom_image_fields);
+        $this->assertSame($batch->id, $certificate->certificate_batch_id);
+    }
 }
