@@ -98,8 +98,28 @@ class LayoutToHtmlRenderer
             'qrcode' => $this->wrap($position, '{qrcode}'),
             'signature' => $this->wrap($position, '{signature}'),
             'company_logo' => $this->wrap($position, '{company_logo}'),
+            'image' => $this->renderImage($element, $position),
             default => $this->renderText($element, $position),
         };
+    }
+
+    /**
+     * Generic image slot for admin-defined custom fields (anything beyond
+     * the fixed qrcode/signature/company_logo types) — binding is the
+     * custom token key, e.g. {course_logo}, filled at render time from
+     * Certificate::custom_image_fields via the template's custom_field_schema.
+     *
+     * @param  array<string, mixed>  $element
+     */
+    private function renderImage(array $element, string $position): string
+    {
+        $binding = $element['binding'] ?? null;
+
+        if (! $binding) {
+            return '';
+        }
+
+        return $this->wrap($position, '<img src="{'.$binding.'}" alt="" style="width:100%;height:100%;object-fit:contain;">');
     }
 
     /**

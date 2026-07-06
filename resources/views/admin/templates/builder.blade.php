@@ -47,7 +47,7 @@
             <button id="tool-add-text" type="button" data-builder-tool="text" class="builder-tool w-12 h-12 flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Add Text">
                 <span class="material-symbols-outlined">text_fields</span>
             </button>
-            <button id="tool-add-image" type="button" data-builder-tool="image" class="builder-tool w-12 h-12 flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Add Image (coming soon)" disabled>
+            <button id="tool-add-image" type="button" data-builder-tool="image" class="builder-tool w-12 h-12 flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Add Custom Image Field">
                 <span class="material-symbols-outlined">image</span>
             </button>
             <button id="tool-add-qr" type="button" data-builder-tool="qr" class="builder-tool w-12 h-12 flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Add QR Code">
@@ -98,6 +98,11 @@
                 <option value="organization_name">Organization Name</option>
                 <option value="verification_code">Verification Code</option>
             </select>
+
+            <button id="add-custom-text-btn" type="button" class="w-full h-10 mb-lg flex items-center justify-center gap-xs font-label-md text-label-md text-primary border border-dashed border-primary rounded-lg hover:bg-primary-fixed transition-colors">
+                <span class="material-symbols-outlined text-base">add</span>
+                Custom text field
+            </button>
 
             <div id="property-panel" class="hidden space-y-md">
                 <h3 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wide">Text Properties</h3>

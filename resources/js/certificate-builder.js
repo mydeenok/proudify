@@ -48,8 +48,16 @@ if (root) {
         company_logo: 'LOGO',
     };
 
-    function addText({ binding = null, content = 'Double-click to edit' } = {}) {
-        const text = binding ? `{${BOUND_FIELD_LABELS[binding] ?? binding}}` : content;
+    function slugify(label) {
+        return label
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '') || `field_${generateId()}`;
+    }
+
+    function addText({ binding = null, content = 'Double-click to edit', label = null } = {}) {
+        const text = binding ? `{${label ?? BOUND_FIELD_LABELS[binding] ?? binding}}` : content;
 
         const obj = new fabric.Textbox(text, {
             left: canvasSize.width / 2 - 150,
@@ -63,14 +71,14 @@ if (root) {
             originX: 'left',
             originY: 'top',
         });
-        obj.data = { id: generateId(), type: 'text', binding };
+        obj.data = { id: generateId(), type: 'text', binding, label };
 
         canvas.add(obj);
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
     }
 
-    function addPlaceholder(type, label) {
+    function addPlaceholder(type, label, binding = type, extraData = {}) {
         const width = 150;
         const height = 150;
 
@@ -99,7 +107,7 @@ if (root) {
             originX: 'left',
             originY: 'top',
         });
-        group.data = { id: generateId(), type, binding: type };
+        group.data = { id: generateId(), type, binding, ...extraData };
 
         canvas.add(group);
         canvas.setActiveObject(group);
@@ -125,6 +133,7 @@ if (root) {
                 id: obj.data?.id ?? generateId(),
                 type: obj.data?.type ?? 'text',
                 binding: obj.data?.binding ?? null,
+                label: obj.data?.label ?? null,
                 xPercent: (obj.left / canvasSize.width) * 100,
                 yPercent: (obj.top / canvasSize.height) * 100,
                 widthPercent: (width / canvasSize.width) * 100,
@@ -167,8 +176,15 @@ if (root) {
                     obj.set({ left, top, angle: el.rotation ?? 0 });
                     obj.scaleToWidth(width);
                     obj.data.id = el.id;
+                } else if (el.type === 'image') {
+                    const label = el.label ?? el.binding ?? 'IMAGE';
+                    addPlaceholder('image', label.toUpperCase(), el.binding, { label: el.label });
+                    const obj = canvas.getActiveObject();
+                    obj.set({ left, top, angle: el.rotation ?? 0 });
+                    obj.scaleToWidth(width);
+                    obj.data.id = el.id;
                 } else {
-                    addText({ binding: el.binding, content: el.content ?? '' });
+                    addText({ binding: el.binding, content: el.content ?? '', label: el.label });
                     const obj = canvas.getActiveObject();
                     obj.set({
                         left,
@@ -235,6 +251,25 @@ if (root) {
             setActiveTool('text');
             event.target.value = '';
         }
+    });
+
+    // Custom fields: anything the admin names here beyond the fixed system
+    // tokens above becomes a per-certificate value the issuing user fills
+    // in (see CertificateBuilderController::deriveCustomFieldSchema) — there
+    // is no separate "mark as customizable" step, adding it here IS that.
+    document.getElementById('add-custom-text-btn')?.addEventListener('click', () => {
+        const label = prompt('Label for this custom field (e.g. "Course Name")');
+        if (!label) return;
+        addText({ binding: slugify(label), content: '', label });
+        setActiveTool('text');
+    });
+
+    document.getElementById('tool-add-image')?.addEventListener('click', () => {
+        const label = prompt('Label for this custom image field (e.g. "Course Logo")');
+        if (!label) return;
+        const binding = slugify(label);
+        addPlaceholder('image', label.toUpperCase(), binding, { label });
+        setActiveTool('image');
     });
 
     document.getElementById('tool-add-qr')?.addEventListener('click', () => {

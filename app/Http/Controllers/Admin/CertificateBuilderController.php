@@ -8,6 +8,7 @@ use App\Services\LayoutToHtmlRenderer;
 use App\Services\TemplateBackgroundImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class CertificateBuilderController extends Controller
@@ -68,10 +69,60 @@ class CertificateBuilderController extends Controller
         $template->update([
             'canvas_json' => $canvasJson,
             'html_content' => $renderer->render($canvasJson),
+            'custom_field_schema' => $this->deriveCustomFieldSchema($canvasJson, $importService),
             'is_active' => true,
         ]);
 
         return response()->json(['status' => 'published', 'redirect' => route('admin.templates.index')]);
+    }
+
+    /**
+     * Any canvas element bound to something outside the fixed system token
+     * set is, by definition, an admin-defined custom field — there's no
+     * separate "mark as customizable" step, since adding a field beyond the
+     * system set only ever means one thing: a per-certificate value the
+     * issuing user is meant to fill in. This schema is what Phase 3's
+     * certificate-create form and inline editor read to know which fields
+     * to render, so it's rebuilt fresh on every publish rather than edited
+     * by hand.
+     *
+     * @param  array{elements?: array<int, array<string, mixed>>}  $canvasJson
+     * @return array<int, array{key: string, label: string, type: string, required: bool}>
+     */
+    private function deriveCustomFieldSchema(array $canvasJson, TemplateBackgroundImportService $importService): array
+    {
+        $systemTokens = $importService->systemTokenKeys();
+        $schema = [];
+        $seenKeys = [];
+
+        foreach ($canvasJson['elements'] ?? [] as $element) {
+            $binding = $element['binding'] ?? null;
+            $type = $element['type'] ?? 'text';
+
+            if (! is_string($binding) || $binding === '' || isset($seenKeys[$binding])) {
+                continue;
+            }
+
+            if (in_array($binding, $systemTokens, true) || preg_match('/^company_logo_\d+$/', $binding) === 1) {
+                continue;
+            }
+
+            if (! in_array($type, ['text', 'image'], true)) {
+                continue;
+            }
+
+            $seenKeys[$binding] = true;
+            $schema[] = [
+                'key' => $binding,
+                'label' => is_string($element['label'] ?? null) && $element['label'] !== ''
+                    ? $element['label']
+                    : Str::headline($binding),
+                'type' => $type,
+                'required' => false,
+            ];
+        }
+
+        return $schema;
     }
 
     /**

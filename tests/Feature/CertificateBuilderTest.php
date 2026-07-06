@@ -117,4 +117,58 @@ class CertificateBuilderTest extends TestCase
 
         $this->assertSame($firstBackground, $template->refresh()->canvas_json['background_html']);
     }
+
+    public function test_publishing_derives_custom_field_schema_from_non_system_bindings(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create();
+
+        $canvasJson = [
+            'elements' => [
+                ['id' => 'el_1', 'type' => 'text', 'binding' => 'recipient_name', 'label' => null, 'xPercent' => 10, 'yPercent' => 20, 'widthPercent' => 40, 'heightPercent' => 10, 'rotation' => 0, 'z' => 0],
+                ['id' => 'el_2', 'type' => 'text', 'binding' => 'course_name', 'label' => 'Course Name', 'xPercent' => 10, 'yPercent' => 40, 'widthPercent' => 40, 'heightPercent' => 10, 'rotation' => 0, 'z' => 1],
+                ['id' => 'el_3', 'type' => 'image', 'binding' => 'course_logo', 'label' => 'Course Logo', 'xPercent' => 60, 'yPercent' => 10, 'widthPercent' => 15, 'heightPercent' => 15, 'rotation' => 0, 'z' => 2],
+            ],
+        ];
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => $canvasJson])
+            ->assertOk();
+
+        $schema = $template->refresh()->custom_field_schema;
+
+        $this->assertCount(2, $schema, 'The system-bound recipient_name element must not appear in the custom schema.');
+        $this->assertSame(['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => false], $schema[0]);
+        $this->assertSame(['key' => 'course_logo', 'label' => 'Course Logo', 'type' => 'image', 'required' => false], $schema[1]);
+        $this->assertStringContainsString('{course_name}', $template->html_content);
+        $this->assertStringContainsString('src="{course_logo}"', $template->html_content);
+    }
+
+    public function test_custom_image_field_renders_into_a_certificates_html_from_custom_image_fields(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create();
+
+        $canvasJson = [
+            'elements' => [
+                ['id' => 'el_1', 'type' => 'image', 'binding' => 'course_logo', 'label' => 'Course Logo', 'xPercent' => 60, 'yPercent' => 10, 'widthPercent' => 15, 'heightPercent' => 15, 'rotation' => 0, 'z' => 0],
+            ],
+        ];
+
+        $this->actingAs($admin)->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => $canvasJson]);
+        $template->refresh();
+
+        \Illuminate\Support\Facades\Storage::fake('public');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('logos/course.png', 'fake-image-bytes');
+
+        $certificate = \App\Models\Certificate::factory()->create([
+            'template_id' => $template->id,
+            'custom_image_fields' => ['course_logo' => 'logos/course.png'],
+        ]);
+
+        $html = app(\App\Services\CertificateRenderService::class)->renderHtml($certificate);
+
+        $this->assertStringContainsString('src="data:', $html);
+        $this->assertStringNotContainsString('{course_logo}', $html);
+    }
 }

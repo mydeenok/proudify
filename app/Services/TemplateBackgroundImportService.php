@@ -33,6 +33,19 @@ class TemplateBackgroundImportService
     public function __construct(private readonly QrCodeService $qrCodeService) {}
 
     /**
+     * The fixed set of tokens every template understands natively. Anything
+     * outside this list that the builder saves is, by definition, an
+     * admin-defined custom field — see CertificateBuilderController::publish(),
+     * which derives Template::custom_field_schema from exactly this distinction.
+     *
+     * @return array<int, string>
+     */
+    public function systemTokenKeys(): array
+    {
+        return [...array_keys(self::TEXT_TOKENS), ...self::IMAGE_TOKENS];
+    }
+
+    /**
      * Renders html_content with every known placeholder wrapped in a
      * data-bind marker and filled with sample content, so the builder's
      * auto-detect JS can locate each field's on-page position once the
