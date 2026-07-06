@@ -95,6 +95,13 @@ export function initCertificateLivePreview() {
 
     applyZoom();
 
+    // The iframe already has real markup via the server-rendered
+    // initialPreviewHtml (no fetch needed for the first paint) - the
+    // loading indicator must start hidden, since rerender() is the only
+    // thing that ever toggles it and it doesn't run until the user
+    // actually edits a field.
+    if (loading) loading.style.display = 'none';
+
     initPreviewLaunch(fields, customTextFields);
 }
 
