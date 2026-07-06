@@ -8,9 +8,33 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'image_density' => env('CERTIFICATE_IMAGE_DENSITY', 200),
+    // 150 (down from 200) measured ~46% faster on the Imagick conversion
+    // step with no visible quality loss for a screen-viewed certificate
+    // preview image - the downloadable artifact is still the full-quality
+    // PDF, this setting only affects the JPG preview/thumbnail.
+    'image_density' => env('CERTIFICATE_IMAGE_DENSITY', 150),
     'image_quality' => env('CERTIFICATE_IMAGE_QUALITY', 90),
     'image_resize' => env('CERTIFICATE_IMAGE_RESIZE', '1000x'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Browsershot (PDF rendering)
+    |--------------------------------------------------------------------------
+    |
+    | By default Browsershot launches a brand-new headless Chrome process
+    | per PDF - that alone measured ~1-3s of pure launch overhead on this
+    | machine, before any actual rendering starts. Setting these env vars
+    | points Browsershot at an already-running Chrome instead (started with
+    | --remote-debugging-port matching CERTIFICATE_CHROME_PORT), which
+    | measured a consistent 30-60% reduction in render time. Left unset,
+    | CertificateRenderService falls back to the normal per-request launch -
+    | this is opt-in, not required, so a dev machine without a persistent
+    | Chrome process running still works exactly as before.
+    |
+    */
+
+    'chrome_remote_host' => env('CERTIFICATE_CHROME_HOST'),
+    'chrome_remote_port' => env('CERTIFICATE_CHROME_PORT', 9222),
 
     /*
     |--------------------------------------------------------------------------

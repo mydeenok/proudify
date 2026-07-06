@@ -6,7 +6,10 @@ use App\Models\Certificate;
 use App\Models\Template;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Imagick;
+use RuntimeException;
 use Spatie\Browsershot\Browsershot;
 
 /**
@@ -145,9 +148,70 @@ class CertificateRenderService
             ? $browsershot->landscape()
             : $browsershot->portrait();
 
+        // Opt-in: if CERTIFICATE_CHROME_HOST is set, connect to an
+        // already-running Chrome instead of paying the ~1-3s launch cost on
+        // every single PDF. Deliberately no throwOnRemoteConnectionError()
+        // here - if that instance isn't reachable, Browsershot silently
+        // falls back to launching its own (see bin/browser.cjs), so a dev
+        // machine without a persistent Chrome running is unaffected.
+        if ($host = config('certificates.chrome_remote_host')) {
+            $browsershot->setRemoteInstance($host, (int) config('certificates.chrome_remote_port'));
+        }
+
         $browsershot->savePdf($absolutePath);
 
         return $relativePath;
+    }
+
+    /**
+     * PDF -> JPG preview conversion (Imagick-primary / CLI-fallback, same
+     * as the reference app). Extracted out of ConvertCertificatePdfToImageJob
+     * so both the queued job (bulk-upload path) and the synchronous
+     * single-issue path (IssueSingleCertificateAction) call one
+     * implementation instead of two copies drifting apart.
+     */
+    public function convertPdfToImage(Certificate $certificate): string
+    {
+        $pdfAbsolutePath = Storage::disk('public')->path($certificate->pdf_path);
+        $imageRelativePath = preg_replace('/\.pdf$/', '.jpg', $certificate->pdf_path);
+        $imageAbsolutePath = Storage::disk('public')->path($imageRelativePath);
+
+        $density = (int) config('certificates.image_density');
+        $quality = (int) config('certificates.image_quality');
+
+        extension_loaded('imagick')
+            ? $this->convertWithImagick($pdfAbsolutePath, $imageAbsolutePath, $density, $quality)
+            : $this->convertWithCli($pdfAbsolutePath, $imageAbsolutePath, $density, $quality);
+
+        return $imageRelativePath;
+    }
+
+    private function convertWithImagick(string $pdfPath, string $imagePath, int $density, int $quality): void
+    {
+        $imagick = new Imagick;
+        $imagick->setResolution($density, $density);
+        $imagick->readImage("{$pdfPath}[0]");
+        $imagick->setImageFormat('jpg');
+        $imagick->setImageCompressionQuality($quality);
+        $imagick->setImageBackgroundColor('white');
+        $imagick->setImageAlphaChannel(Imagick::ALPHACHANNEL_REMOVE);
+        $imagick->mergeImageLayers(Imagick::LAYERMETHOD_FLATTEN);
+        $imagick->writeImage($imagePath);
+        $imagick->clear();
+        $imagick->destroy();
+    }
+
+    private function convertWithCli(string $pdfPath, string $imagePath, int $density, int $quality): void
+    {
+        foreach (['magick', 'convert'] as $binary) {
+            $result = Process::run([$binary, '-density', (string) $density, "{$pdfPath}[0]", '-quality', (string) $quality, $imagePath]);
+
+            if ($result->successful()) {
+                return;
+            }
+        }
+
+        throw new RuntimeException('No working PDF-to-image conversion method available (Imagick and CLI fallbacks both failed).');
     }
 
     /**

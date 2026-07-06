@@ -4,6 +4,7 @@ namespace App\Jobs\Certificates;
 
 use App\Jobs\Certificates\Concerns\RefreshesCertificateRecord;
 use App\Models\Certificate;
+use App\Services\CertificateRenderService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,16 +13,15 @@ use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Facades\Storage;
-use Imagick;
 use Throwable;
 
 /**
- * PDF -> JPG preview conversion. Ported from the reference app's
- * Imagick-primary / CLI-fallback pattern, but fixes Bug 4: a failed
- * conversion now persists image_generation_status = 'failed' instead of
- * failing silently, so the UI can surface a manual retry action.
+ * Queued PDF -> JPG preview conversion for the bulk-upload path, which
+ * needs a real queue (hundreds of rows can't run synchronously in one
+ * request). Single-certificate issuance instead calls
+ * CertificateRenderService::convertPdfToImage() directly and inline — see
+ * IssueSingleCertificateAction — so this job is a thin wrapper around that
+ * same service, not a second copy of the conversion logic.
  */
 class ConvertCertificatePdfToImageJob implements ShouldQueue
 {
@@ -49,20 +49,11 @@ class ConvertCertificatePdfToImageJob implements ShouldQueue
         ];
     }
 
-    public function handle(): void
+    public function handle(CertificateRenderService $renderService): void
     {
         $this->certificate->forceFill(['image_generation_status' => 'processing'])->save();
 
-        $pdfAbsolutePath = Storage::disk('public')->path($this->certificate->pdf_path);
-        $imageRelativePath = preg_replace('/\.pdf$/', '.jpg', $this->certificate->pdf_path);
-        $imageAbsolutePath = Storage::disk('public')->path($imageRelativePath);
-
-        $density = (int) config('certificates.image_density');
-        $quality = (int) config('certificates.image_quality');
-
-        extension_loaded('imagick')
-            ? $this->convertWithImagick($pdfAbsolutePath, $imageAbsolutePath, $density, $quality)
-            : $this->convertWithCli($pdfAbsolutePath, $imageAbsolutePath, $density, $quality);
+        $imageRelativePath = $renderService->convertPdfToImage($this->certificate);
 
         $this->certificate->forceFill([
             'image_path' => $imageRelativePath,
@@ -78,33 +69,5 @@ class ConvertCertificatePdfToImageJob implements ShouldQueue
             'certificate_id' => $this->certificate->id,
             'exception' => $exception->getMessage(),
         ]);
-    }
-
-    private function convertWithImagick(string $pdfPath, string $imagePath, int $density, int $quality): void
-    {
-        $imagick = new Imagick;
-        $imagick->setResolution($density, $density);
-        $imagick->readImage("{$pdfPath}[0]");
-        $imagick->setImageFormat('jpg');
-        $imagick->setImageCompressionQuality($quality);
-        $imagick->setImageBackgroundColor('white');
-        $imagick->setImageAlphaChannel(Imagick::ALPHACHANNEL_REMOVE);
-        $imagick->mergeImageLayers(Imagick::LAYERMETHOD_FLATTEN);
-        $imagick->writeImage($imagePath);
-        $imagick->clear();
-        $imagick->destroy();
-    }
-
-    private function convertWithCli(string $pdfPath, string $imagePath, int $density, int $quality): void
-    {
-        foreach (['magick', 'convert'] as $binary) {
-            $result = Process::run([$binary, '-density', (string) $density, "{$pdfPath}[0]", '-quality', (string) $quality, $imagePath]);
-
-            if ($result->successful()) {
-                return;
-            }
-        }
-
-        throw new \RuntimeException('No working PDF-to-image conversion method available (Imagick and CLI fallbacks both failed).');
     }
 }

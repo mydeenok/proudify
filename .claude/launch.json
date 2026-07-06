@@ -23,6 +23,12 @@
       "name": "proudify-queue",
       "runtimeExecutable": "php",
       "runtimeArgs": ["artisan", "queue:listen", "--queue=certificates,bulk,mail,webhooks,default", "--tries=1", "--timeout=0"]
+    },
+    {
+      "name": "proudify-chrome-debug",
+      "runtimeExecutable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "runtimeArgs": ["--headless=new", "--remote-debugging-port=9222", "--disable-gpu", "--no-sandbox", "--user-data-dir=storage/app/chrome-profile"],
+      "port": 9222
     }
   ]
 }

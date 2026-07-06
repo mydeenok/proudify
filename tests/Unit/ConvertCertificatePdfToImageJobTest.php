@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Jobs\Certificates\ConvertCertificatePdfToImageJob;
 use App\Models\Certificate;
+use App\Services\CertificateRenderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Imagick;
@@ -32,7 +33,7 @@ class ConvertCertificatePdfToImageJobTest extends TestCase
 
         $certificate->forceFill(['pdf_path' => $pdfRelativePath])->save();
 
-        (new ConvertCertificatePdfToImageJob($certificate))->handle();
+        (new ConvertCertificatePdfToImageJob($certificate))->handle(app(CertificateRenderService::class));
 
         $certificate->refresh();
         $this->assertSame('completed', $certificate->image_generation_status);
