@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\AdminNewRegistrationNotification;
 use App\Services\OtpDeliveryFailedException;
 use App\Services\OtpService;
 use Illuminate\Http\RedirectResponse;
@@ -58,6 +59,8 @@ class OtpVerificationController extends Controller
         $this->otpService->clear($user);
 
         $request->session()->forget(['otp_user_id', 'otp_debug_code']);
+
+        User::admins()->get()->each(fn (User $admin) => $admin->notify(new AdminNewRegistrationNotification($user)));
 
         return redirect()->route('otp.pending-approval');
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Models\CertificateVerification;
+use App\Models\EmailLog;
 use App\Models\Template;
 use App\Models\UserSubscription;
 use Illuminate\Support\Facades\DB;
@@ -65,6 +66,37 @@ class AdminAnalyticsController extends Controller
             ->limit(5)
             ->get();
 
+        $emailByDay = EmailLog::where('created_at', '>=', now()->subDays(29)->startOfDay())
+            ->select(DB::raw('DATE(created_at) as day'), 'status', DB::raw('COUNT(*) as total'))
+            ->groupBy('day', 'status')
+            ->get()
+            ->groupBy('day');
+
+        $emailSeries = collect(range(29, 0))->map(function ($daysAgo) use ($emailByDay) {
+            $date = now()->subDays($daysAgo)->toDateString();
+            $rows = $emailByDay->get($date, collect());
+
+            return [
+                'day' => $date,
+                'sent' => (int) ($rows->firstWhere('status', 'sent')->total ?? 0),
+                'failed' => (int) ($rows->firstWhere('status', 'failed')->total ?? 0),
+            ];
+        });
+
+        $totalEmailsSent = EmailLog::sent()->count();
+        $totalEmailsFailed = EmailLog::failed()->count();
+        $totalEmailsAttempted = $totalEmailsSent + $totalEmailsFailed;
+        $emailDeliveryRate = $totalEmailsAttempted > 0
+            ? round(($totalEmailsSent / $totalEmailsAttempted) * 100, 1)
+            : null;
+
+        $emailFailuresByType = EmailLog::failed()
+            ->select('notification_class', DB::raw('COUNT(*) as total'))
+            ->groupBy('notification_class')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get();
+
         $planColors = ['#d92727', '#151c27', '#dce2f3', '#cea62c', '#5e5e62'];
         $totalPlanUsers = $usersByPlan->sum();
         $donutSegments = [];
@@ -112,6 +144,11 @@ class AdminAnalyticsController extends Controller
             'verificationRate' => $verificationRate,
             'totalCertificatesIssued' => Certificate::count(),
             'topTemplates' => $topTemplates,
+            'emailSeries' => $emailSeries,
+            'totalEmailsSent' => $totalEmailsSent,
+            'totalEmailsFailed' => $totalEmailsFailed,
+            'emailDeliveryRate' => $emailDeliveryRate,
+            'emailFailuresByType' => $emailFailuresByType,
         ]);
     }
 }

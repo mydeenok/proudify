@@ -6,6 +6,7 @@ use App\Jobs\Bulk\DispatchCertificateBatchJob;
 use App\Models\CertificateBatch;
 use App\Models\Template;
 use App\Models\User;
+use App\Notifications\AdminBulkUploadRequestedNotification;
 use App\Services\BulkUploadIngestService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -151,6 +152,9 @@ class BulkUploadController extends Controller
         $this->authorizeAccess($request, $batch);
 
         DispatchCertificateBatchJob::dispatch($batch);
+
+        $batch->loadMissing('user', 'template');
+        User::admins()->get()->each(fn (User $admin) => $admin->notify(new AdminBulkUploadRequestedNotification($batch)));
 
         return redirect()->route('bulk-upload.status', $batch);
     }

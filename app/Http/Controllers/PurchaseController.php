@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Actions\Subscriptions\ActivateFreePlanAction;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Models\UserSubscription;
+use App\Notifications\AdminNewPurchaseNotification;
 use App\Notifications\PaymentSuccessfulNotification;
 use App\Services\GeoLocationService;
 use App\Services\RazorpayService;
@@ -138,7 +140,11 @@ class PurchaseController extends Controller
             ],
         ]);
 
+        $userSubscription->setRelation('user', $request->user());
+        $userSubscription->setRelation('subscription', $subscription);
+
         $request->user()->notify(new PaymentSuccessfulNotification($userSubscription));
+        User::admins()->get()->each(fn (User $admin) => $admin->notify(new AdminNewPurchaseNotification($userSubscription)));
 
         return response()->json(['success' => true, 'redirect' => route('dashboard')]);
     }

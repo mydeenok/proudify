@@ -1,0 +1,348 @@
+<title>Proudify — Landing Redesign (Clean)</title>
+<style>
+  :root {
+    --ink: #14141a;
+    --ink-soft: #6b6f76;
+    --bg: #ffffff;
+    --bg-soft: #f7f7f9;
+    --bg-card: #ffffff;
+    --line: #e7e7ea;
+    --red: #b40012;
+    --red-bright: #d92727;
+    --red-tint: #fdeceb;
+    --green: #16a34a;
+    --green-tint: #eafaf0;
+
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #f2f3f5; --ink-soft: #9a9ea6;
+      --bg: #101114; --bg-soft: #17181c; --bg-card: #1b1c20;
+      --line: #26272c; --red-tint: #2a1414; --green-tint: #10261a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #f2f3f5; --ink-soft: #9a9ea6;
+    --bg: #101114; --bg-soft: #17181c; --bg-card: #1b1c20;
+    --line: #26272c; --red-tint: #2a1414; --green-tint: #10261a;
+  }
+  :root[data-theme="light"] {
+    --ink: #14141a; --ink-soft: #6b6f76;
+    --bg: #ffffff; --bg-soft: #f7f7f9; --bg-card: #ffffff;
+    --line: #e7e7ea; --red-tint: #fdeceb; --green-tint: #eafaf0;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4 { margin: 0; text-wrap: balance; font-family: var(--sans); }
+  p { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 32px; }
+  @media (max-width: 720px) { .wrap { padding: 0 20px; } }
+  .eyebrow {
+    font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--red);
+  }
+
+  /* ---------- nav ---------- */
+  nav.top { border-bottom: 1px solid var(--line); }
+  .nav-row { display: flex; justify-content: space-between; align-items: center; height: 72px; }
+  .brand { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--red); display: flex; align-items: center; gap: 8px; }
+  .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red-bright); }
+  .nav-links { display: flex; gap: 32px; align-items: center; }
+  .nav-links a { font-size: 14.5px; font-weight: 500; color: var(--ink-soft); }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta { display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    font-size: 14.5px; font-weight: 600; padding: 11px 20px; border-radius: 10px;
+    display: inline-flex; align-items: center; gap: 8px; border: 1px solid transparent;
+    transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--red); color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .btn-primary:hover { background: var(--red-bright); transform: translateY(-1px); }
+  .btn-ghost { color: var(--ink); }
+  .btn-ghost:hover { color: var(--red); }
+  .btn-outline { border-color: var(--line); color: var(--ink); }
+  .btn-outline:hover { border-color: var(--ink-soft); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 88px 0 0; background: var(--bg); }
+  .hero-inner { display: grid; grid-template-columns: 1fr; gap: 12px; text-align: center; max-width: 780px; margin: 0 auto; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px; align-self: center;
+    background: var(--red-tint); color: var(--red); font-size: 13px; font-weight: 600;
+    padding: 7px 14px; border-radius: 999px; margin-bottom: 22px;
+  }
+  .hero h1 {
+    font-size: clamp(38px, 5.4vw, 64px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05;
+  }
+  .hero h1 .accent { color: var(--red); }
+  .hero-sub {
+    font-size: 18px; color: var(--ink-soft); line-height: 1.6; margin: 22px auto 0; max-width: 560px;
+  }
+  .hero-cta { display: flex; justify-content: center; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
+  .hero-cta .btn { padding: 14px 26px; font-size: 15.5px; border-radius: 12px; }
+  .hero-note { font-size: 13px; color: var(--ink-soft); margin-top: 16px; }
+
+  /* ---------- product visual ---------- */
+  .stage { margin: 56px auto 0; max-width: 880px; }
+  .browser-frame {
+    background: var(--bg-card); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: 0 30px 60px -30px rgba(20,20,26,0.25);
+    overflow: hidden;
+  }
+  .browser-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .browser-bar span { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+  .browser-body { padding: 40px; background: var(--bg-soft); display: flex; justify-content: center; }
+  .cert-flat {
+    width: 100%; max-width: 520px; background: var(--bg-card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 36px 40px; position: relative;
+  }
+  .cert-flat .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+  .cert-flat .org { font-size: 13px; font-weight: 700; color: var(--ink-soft); letter-spacing: .04em; text-transform: uppercase; }
+  .cert-flat .check {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--green-tint); color: var(--green);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800;
+  }
+  .cert-flat .label { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 6px; }
+  .cert-flat .name { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .cert-flat .course { font-size: 15px; color: var(--ink-soft); margin-bottom: 22px; }
+  .cert-flat .rule { height: 1px; background: var(--line); margin: 22px 0; }
+  .cert-flat .foot { display: flex; justify-content: space-between; align-items: center; }
+  .cert-flat .id { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+  .cert-flat .qr { width: 30px; height: 30px; border-radius: 6px; background: repeating-conic-gradient(var(--ink) 0% 25%, transparent 0% 50%) 0 0/10px 10px; }
+
+  /* ---------- stat row ---------- */
+  .stats { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg-soft); margin-top: 72px; }
+  .stat-row { display: grid; grid-template-columns: repeat(4,1fr); text-align: center; }
+  @media (max-width: 720px) { .stat-row { grid-template-columns: repeat(2,1fr); } }
+  .stat-cell { padding: 34px 20px; }
+  .stat-num { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .stat-lbl { font-size: 13.5px; color: var(--ink-soft); margin-top: 4px; }
+
+  /* ---------- section head ---------- */
+  .sec { padding: 96px 0; }
+  .sec-head { text-align: center; max-width: 560px; margin: 0 auto 52px; }
+  .sec-head h2 { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; margin-top: 10px; }
+  .sec-head p { font-size: 16px; color: var(--ink-soft); margin-top: 12px; line-height: 1.6; }
+
+  /* ---------- features ---------- */
+  .feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+  @media (max-width: 860px) { .feat-grid { grid-template-columns: 1fr; } }
+  .feat-card {
+    background: var(--bg-card); border: 1px solid var(--line); border-radius: 16px; padding: 28px;
+  }
+  .icon-box {
+    width: 44px; height: 44px; border-radius: 12px; background: var(--red-tint); color: var(--red);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 18px; font-size: 20px;
+  }
+  .feat-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .feat-card p { font-size: 14.5px; color: var(--ink-soft); line-height: 1.6; }
+
+  /* ---------- template gallery ---------- */
+  .gallery { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+  @media (max-width: 860px) { .gallery { grid-template-columns: repeat(2,1fr); } }
+  .tpl {
+    aspect-ratio: 4/3; border-radius: 14px; border: 1px solid var(--line); position: relative; overflow: hidden;
+    display: flex; align-items: flex-end; padding: 14px;
+  }
+  .tpl span { font-size: 13px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .tpl.g1 { background: linear-gradient(140deg,#fbeaea,#f3b9b6); }
+  .tpl.g2 { background: linear-gradient(140deg,#1c1d22,#3a3c46); }
+  .tpl.g3 { background: linear-gradient(140deg,#eef3ea,#bcd7c3); }
+  .tpl.g4 { background: linear-gradient(140deg,#fff3d6,#f3cf8f); }
+  .tpl.g1 span, .tpl.g3 span, .tpl.g4 span { color: #1c1414; text-shadow: none; }
+
+  /* ---------- process ---------- */
+  .process { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; }
+  @media (max-width: 820px) { .process { grid-template-columns: 1fr; } }
+  .step { text-align: left; }
+  .step-num {
+    width: 34px; height: 34px; border-radius: 10px; background: var(--ink); color: var(--bg);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14.5px; margin-bottom: 16px;
+  }
+  .step h4 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .step p { font-size: 14.5px; color: var(--ink-soft); line-height: 1.6; }
+
+  /* ---------- testimonial ---------- */
+  .quote-card {
+    max-width: 680px; margin: 0 auto; text-align: center;
+  }
+  .quote-card p.q { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.5; }
+  .quote-who { margin-top: 22px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .quote-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--red-tint); }
+  .quote-name { font-size: 14px; font-weight: 700; }
+  .quote-org { font-size: 13px; color: var(--ink-soft); }
+
+  /* ---------- final cta ---------- */
+  .cta-band {
+    background: var(--ink); color: var(--bg); border-radius: 24px; padding: 64px 40px; text-align: center;
+  }
+  .cta-band h2 { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
+  .cta-band p { color: color-mix(in srgb, var(--bg) 65%, transparent); margin-top: 12px; font-size: 15.5px; }
+  .cta-band .hero-cta { margin-top: 28px; }
+  .cta-band .btn-outline { border-color: rgba(255,255,255,.25); color: var(--bg); }
+
+  footer { padding: 40px 0 60px; text-align: center; color: var(--ink-soft); font-size: 13px; border-top: 1px solid var(--line); margin-top: 20px; }
+</style>
+
+<nav class="top">
+  <div class="wrap nav-row">
+    <div class="brand"><span class="dot"></span>Proudify</div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#templates">Templates</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-ghost">Log in</a>
+      <a href="#" class="btn btn-primary">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-inner">
+      <span class="badge">✦ Now with instant bulk issuance</span>
+      <h1>Certificates people can <span class="accent">actually verify.</span></h1>
+      <p class="hero-sub">Design once, issue to thousands in one upload, and give every recipient a link anyone can check in seconds.</p>
+      <div class="hero-cta">
+        <a href="#" class="btn btn-primary">Start free — no card needed</a>
+        <a href="#" class="btn btn-outline">Watch a 90-second demo</a>
+      </div>
+      <p class="hero-note">Free for your first 25 certificates</p>
+    </div>
+
+    <div class="stage">
+      <div class="browser-frame">
+        <div class="browser-bar"><span></span><span></span><span></span></div>
+        <div class="browser-body">
+          <div class="cert-flat">
+            <div class="top">
+              <div class="org">Acme Institute</div>
+              <div class="check">✓</div>
+            </div>
+            <div class="label">Certificate of Completion</div>
+            <div class="name">Priya Raman</div>
+            <div class="course">Advanced Data Analytics · 40 hours</div>
+            <div class="rule"></div>
+            <div class="foot">
+              <div class="id">ID PX4-9K21 · Verified 12 Mar 2026</div>
+              <div class="qr"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="wrap">
+    <div class="stat-row">
+      <div class="stat-cell"><div class="stat-num">48,206</div><div class="stat-lbl">Certificates issued</div></div>
+      <div class="stat-cell"><div class="stat-num">312</div><div class="stat-lbl">Organizations</div></div>
+      <div class="stat-cell"><div class="stat-num">4.2s</div><div class="stat-lbl">Avg. issue time</div></div>
+      <div class="stat-cell"><div class="stat-num">99.98%</div><div class="stat-lbl">Uptime</div></div>
+    </div>
+  </div>
+</div>
+
+<section class="sec" id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Features</span>
+      <h2>Everything for issuing at scale</h2>
+      <p>Design, send, and prove — the three things a certificate actually needs to do.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="icon-box">✎</div>
+        <h3>Visual builder</h3>
+        <p>Drag logos, signatures, and merge fields onto a live canvas. What you see is exactly what gets issued.</p>
+      </div>
+      <div class="feat-card">
+        <div class="icon-box">⇪</div>
+        <h3>Bulk upload</h3>
+        <p>Import a spreadsheet of recipients — columns map to fields automatically, and errors get flagged before you send.</p>
+      </div>
+      <div class="feat-card">
+        <div class="icon-box">✓</div>
+        <h3>Instant verification</h3>
+        <p>Every certificate gets a signed QR code and a public record — editing a file can't change what it says.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="templates" style="padding-top:0;">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Templates</span>
+      <h2>Start from a finished design</h2>
+      <p>Achievement, corporate, academic, or dark mode — pick one and make it yours.</p>
+    </div>
+    <div class="gallery">
+      <div class="tpl g1"><span>Classic Elegant</span></div>
+      <div class="tpl g2"><span>Tech Dark Mode</span></div>
+      <div class="tpl g3"><span>Eco Nature</span></div>
+      <div class="tpl g4"><span>Luxury Gold</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="background:var(--bg-soft); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">How it works</span>
+      <h2>Three steps</h2>
+    </div>
+    <div class="process">
+      <div class="step"><div class="step-num">1</div><h4>Design the template</h4><p>Build it in the canvas, or start from the gallery above.</p></div>
+      <div class="step"><div class="step-num">2</div><h4>Connect recipients</h4><p>Upload a CSV, or point it at your LMS roster.</p></div>
+      <div class="step"><div class="step-num">3</div><h4>Issue and verify</h4><p>Every recipient gets a copy, a link, and a QR code that never expires.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="quote-card">
+      <p class="q">"We used to spend two days at the end of every cohort generating and emailing PDFs by hand. Now it's one CSV upload before lunch."</p>
+      <div class="quote-who">
+        <div class="quote-avatar"></div>
+        <div>
+          <div class="quote-name">Ananya Krishnan</div>
+          <div class="quote-org">Program Lead, Acme Institute</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:0;">
+  <div class="wrap">
+    <div class="cta-band">
+      <h2>Your first batch is free</h2>
+      <p>Up to 25 certificates, every template, no card required.</p>
+      <div class="hero-cta">
+        <a href="#" class="btn btn-primary" style="background:#fff;color:var(--ink);">Create your first certificate</a>
+        <a href="#" class="btn btn-outline">View pricing</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>© 2026 Proudify — Certifications, Simplified.</footer>

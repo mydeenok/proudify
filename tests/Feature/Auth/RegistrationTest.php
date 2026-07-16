@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Notifications\AdminNewRegistrationNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -88,6 +89,33 @@ class RegistrationTest extends TestCase
         $this->post('/login', ['email' => $user->email, 'password' => 'password'])
             ->assertRedirect(route('dashboard', absolute: false));
         $this->assertAuthenticatedAs($user->fresh());
+    }
+
+    public function test_verifying_otp_notifies_every_admin_of_the_new_registration(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create();
+        $otherAdmin = User::factory()->admin()->create();
+
+        $this->post('/register', [
+            'first_name' => 'Jane',
+            'last_name' => 'Doe',
+            'organization_name' => 'Acme University',
+            'email' => 'jane@example.com',
+            'phone' => '9876543210',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $user = User::where('email', 'jane@example.com')->firstOrFail();
+        $rawOtp = $this->extractRawOtpFromDatabase($user);
+
+        $this->post(route('otp.verify.store'), ['otp_code' => $rawOtp]);
+
+        Notification::assertSentTo($admin, AdminNewRegistrationNotification::class);
+        Notification::assertSentTo($otherAdmin, AdminNewRegistrationNotification::class);
+        Notification::assertNotSentTo($user, AdminNewRegistrationNotification::class);
     }
 
     /**

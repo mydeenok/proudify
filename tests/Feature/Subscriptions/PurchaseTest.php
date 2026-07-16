@@ -5,8 +5,10 @@ namespace Tests\Feature\Subscriptions;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\UserSubscription;
+use App\Notifications\AdminNewPurchaseNotification;
 use App\Services\RazorpayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class PurchaseTest extends TestCase
@@ -131,6 +133,9 @@ class PurchaseTest extends TestCase
 
     public function test_verify_payment_creates_a_completed_subscription_on_valid_signature(): void
     {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
         $paidPlan = Subscription::factory()->create(['cost_month_inr' => 999]);
 
@@ -151,5 +156,6 @@ class PurchaseTest extends TestCase
             'razorpay_payment_id' => 'pay_y',
             'payment_status' => 'completed',
         ]);
+        Notification::assertSentTo($admin, AdminNewPurchaseNotification::class);
     }
 }

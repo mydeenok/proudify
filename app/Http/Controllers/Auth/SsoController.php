@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\AdminNewRegistrationNotification;
 use App\Services\SsoService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,6 +73,8 @@ class SsoController extends Controller
                 'password' => Str::random(40),
             ]);
             $user->forceFill(['role' => 'user', 'status' => 'pending_approval'])->save();
+
+            User::admins()->get()->each(fn (User $admin) => $admin->notify(new AdminNewRegistrationNotification($user)));
         }
 
         if ($user->isAdmin()) {

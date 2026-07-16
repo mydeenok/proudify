@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -72,6 +73,16 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    /**
+     * Every staff account that should hear about platform-wide events
+     * (new registrations, bulk-upload requests, purchases) — a small
+     * install has one admin, but this stays correct as more are added.
+     */
+    public function scopeAdmins(Builder $query): Builder
+    {
+        return $query->where('role', 'admin');
     }
 
     public function isActive(): bool

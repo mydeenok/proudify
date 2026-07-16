@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Storage;
     </header>
 
     <div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
-        <div class="col-span-1 md:col-span-4 bg-surface border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-[0px_4px_12px_rgba(0,0,0,0.02)]">
+        <div class="col-span-1 md:col-span-3 bg-surface border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-[0px_4px_12px_rgba(0,0,0,0.02)]">
             <div class="flex justify-between items-start mb-md">
                 <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Total Certificates</span>
                 <div class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-primary">
@@ -42,7 +42,7 @@ use Illuminate\Support\Facades\Storage;
             </div>
         </div>
 
-        <div class="col-span-1 md:col-span-4 bg-surface border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-[0px_4px_12px_rgba(0,0,0,0.02)]">
+        <div class="col-span-1 md:col-span-3 bg-surface border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-[0px_4px_12px_rgba(0,0,0,0.02)]">
             <div class="flex justify-between items-start mb-md">
                 <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Active Users</span>
                 <div class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-primary">
@@ -63,7 +63,7 @@ use Illuminate\Support\Facades\Storage;
             </div>
         </div>
 
-        <div class="col-span-1 md:col-span-4 bg-surface border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-[0px_4px_12px_rgba(0,0,0,0.02)]">
+        <div class="col-span-1 md:col-span-3 bg-surface border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-[0px_4px_12px_rgba(0,0,0,0.02)]">
             <div class="flex justify-between items-start mb-md">
                 <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Paying Subscribers</span>
                 <div class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-primary">
@@ -81,6 +81,25 @@ use Illuminate\Support\Facades\Storage;
                 <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 30">
                     <path d="M0,20 C20,15 30,25 40,10 C50,-5 60,15 70,5 C80,-5 90,5 100,0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" vector-effect="non-scaling-stroke"></path>
                 </svg>
+            </div>
+        </div>
+
+        <div class="col-span-1 md:col-span-3 bg-surface border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-[0px_4px_12px_rgba(0,0,0,0.02)]">
+            <div class="flex justify-between items-start mb-md">
+                <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Email Delivery</span>
+                <div class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-primary">
+                    <span class="material-symbols-outlined text-[18px]">mail</span>
+                </div>
+            </div>
+            <div>
+                <div class="font-headline-xl text-headline-xl text-on-surface mb-xs">{{ number_format($emailsSentToday) }}</div>
+                <div class="flex items-center gap-xs font-label-sm text-label-sm {{ $emailsFailedToday > 0 ? 'text-error' : 'text-primary-container' }}">
+                    <span class="material-symbols-outlined text-[14px]">{{ $emailsFailedToday > 0 ? 'error' : 'trending_up' }}</span>
+                    <span>{{ number_format($emailsFailedToday) }} failed today</span>
+                </div>
+            </div>
+            <div class="mt-md">
+                <a href="{{ route('admin.analytics.index') }}#email-delivery" class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors">View details &rarr;</a>
             </div>
         </div>
 

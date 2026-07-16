@@ -15,6 +15,8 @@ $linePath = $revenuePathY->isEmpty()
     ? '0,200'
     : $revenuePathY->map(fn ($p, $i) => ($i === 0 ? 'M' : 'L').$p)->implode(' ');
 $areaPath = $linePath.' L1000,200 L0,200 Z';
+
+$maxEmailDay = max(1, $emailSeries->max(fn ($day) => $day['sent'] + $day['failed']));
 @endphp
 
 <x-layouts.admin-shell title="Analytics">
@@ -34,7 +36,7 @@ $areaPath = $linePath.' L1000,200 L0,200 Z';
         </x-slot:actions>
     </x-page-header>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-gutter">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-gutter">
         <div class="card-surface bento-shadow p-lg">
             <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Revenue (completed)</p>
             @forelse ($revenueByCurrency as $currency => $total)
@@ -56,6 +58,13 @@ $areaPath = $linePath.' L1000,200 L0,200 Z';
                 {{ $verificationRate !== null ? "{$verificationRate}%" : '—' }}
             </p>
             <p class="font-body-sm text-body-sm text-on-surface-variant">{{ number_format($totalVerifications) }} lookups total</p>
+        </div>
+        <div class="card-surface bento-shadow p-lg">
+            <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Email delivery rate</p>
+            <p class="font-headline-md text-headline-md text-on-surface">
+                {{ $emailDeliveryRate !== null ? "{$emailDeliveryRate}%" : '—' }}
+            </p>
+            <p class="font-body-sm text-body-sm text-on-surface-variant">{{ number_format($totalEmailsSent) }} sent &middot; {{ number_format($totalEmailsFailed) }} failed</p>
         </div>
     </div>
 
@@ -166,6 +175,67 @@ $areaPath = $linePath.' L1000,200 L0,200 Z';
                 <span>{{ \Illuminate\Support\Carbon::parse($issuanceSeries->keys()->first())->format('M j') }}</span>
                 <span>{{ \Illuminate\Support\Carbon::parse($issuanceSeries->keys()->last())->format('M j') }}</span>
             </div>
+        </div>
+
+        {{-- Email delivery: sent vs failed, last 30 days --}}
+        <div id="email-delivery" class="col-span-12 bg-surface border border-outline-variant rounded-xl p-lg bento-shadow flex flex-col scroll-mt-lg">
+            <div class="mb-xl flex justify-between items-start">
+                <div>
+                    <h3 class="font-headline-md text-headline-md text-on-surface">Email Delivery</h3>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Sent vs. failed — last 30 days.</p>
+                </div>
+                <div class="flex items-center gap-lg">
+                    <div class="flex items-center gap-xs">
+                        <span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant">Sent ({{ number_format($totalEmailsSent) }})</span>
+                    </div>
+                    <div class="flex items-center gap-xs">
+                        <span class="w-2.5 h-2.5 rounded-full bg-error"></span>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant">Failed ({{ number_format($totalEmailsFailed) }})</span>
+                    </div>
+                </div>
+            </div>
+
+            @if ($totalEmailsSent + $totalEmailsFailed > 0)
+                <div class="flex items-end gap-[2px] h-64 relative pl-8">
+                    <div class="absolute left-0 top-0 h-full flex flex-col justify-between text-on-surface-variant font-label-sm text-label-sm pb-8 pr-2 border-r border-outline-variant">
+                        <span>{{ number_format($maxEmailDay) }}</span>
+                        <span>{{ number_format((int) ($maxEmailDay / 2)) }}</span>
+                        <span>0</span>
+                    </div>
+                    @foreach ($emailSeries as $day)
+                        <div class="flex-1 group relative h-full flex flex-col justify-end items-center">
+                            <div class="w-full max-w-[32px] mx-auto flex flex-col-reverse rounded-t-sm overflow-hidden" style="height: {{ max(2, round((($day['sent'] + $day['failed']) / $maxEmailDay) * 100)) }}%">
+                                <div class="w-full bg-primary-container" style="height: {{ ($day['sent'] + $day['failed']) > 0 ? round(($day['sent'] / ($day['sent'] + $day['failed'])) * 100) : 0 }}%"></div>
+                                <div class="w-full bg-error" style="height: {{ ($day['sent'] + $day['failed']) > 0 ? round(($day['failed'] / ($day['sent'] + $day['failed'])) * 100) : 0 }}%"></div>
+                            </div>
+                            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-on-surface text-on-primary text-[10px] rounded px-1.5 py-0.5 whitespace-nowrap z-10">
+                                {{ \Illuminate\Support\Carbon::parse($day['day'])->format('M j') }}: {{ $day['sent'] }} sent, {{ $day['failed'] }} failed
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="flex justify-between font-label-sm text-label-sm text-on-surface-variant pt-2 border-t border-outline-variant mt-2 pl-8">
+                    <span>{{ \Illuminate\Support\Carbon::parse($emailSeries->first()['day'])->format('M j') }}</span>
+                    <span>{{ \Illuminate\Support\Carbon::parse($emailSeries->last()['day'])->format('M j') }}</span>
+                </div>
+
+                @if ($emailFailuresByType->isNotEmpty())
+                    <div class="mt-xl pt-lg border-t border-outline-variant">
+                        <h4 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-md">Top failing email types</h4>
+                        <div class="flex flex-col gap-sm">
+                            @foreach ($emailFailuresByType as $failure)
+                                <div class="flex items-center justify-between">
+                                    <span class="font-body-md text-body-md text-on-surface">{{ \Illuminate\Support\Str::headline(class_basename($failure->notification_class)) }}</span>
+                                    <span class="font-label-sm text-label-sm text-error">{{ number_format($failure->total) }} failed</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            @else
+                <p class="font-body-md text-body-md text-on-surface-variant py-xl text-center">No emails have been sent yet.</p>
+            @endif
         </div>
 
         {{-- Top templates table --}}

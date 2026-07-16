@@ -6,9 +6,11 @@ use App\Jobs\Bulk\DispatchCertificateBatchJob;
 use App\Models\CertificateBatch;
 use App\Models\Template;
 use App\Models\User;
+use App\Notifications\AdminBulkUploadRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class BulkUploadWizardTest extends TestCase
@@ -33,6 +35,9 @@ class BulkUploadWizardTest extends TestCase
 
     public function test_the_full_wizard_creates_a_batch_ready_to_confirm(): void
     {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
         $template = Template::factory()->create();
         $file = UploadedFile::fake()->createWithContent('recipients.csv', self::CSV);
@@ -63,6 +68,7 @@ class BulkUploadWizardTest extends TestCase
             ->assertRedirect(route('bulk-upload.status', $batch));
 
         Bus::assertDispatched(DispatchCertificateBatchJob::class);
+        Notification::assertSentTo($admin, AdminBulkUploadRequestedNotification::class);
     }
 
     public function test_a_file_outside_the_row_cap_is_rejected_at_mapping_time(): void

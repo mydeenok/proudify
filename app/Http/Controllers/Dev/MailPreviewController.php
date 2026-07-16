@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Models\CertificateBatch;
 use App\Models\Subscription;
+use App\Models\Template;
 use App\Models\User;
 use App\Models\UserSubscription;
 use Illuminate\Http\Response;
@@ -37,6 +38,9 @@ class MailPreviewController extends Controller
             'subscription-expired' => ['label' => 'Subscription expired', 'view' => 'emails.subscription-expired'],
             'quota-almost-full' => ['label' => 'Quota almost full', 'view' => 'emails.quota-almost-full'],
             'subscription-cancelled' => ['label' => 'Subscription cancelled', 'view' => 'emails.subscription-cancelled'],
+            'admin-new-registration' => ['label' => '[Admin] New registration awaiting approval', 'view' => 'emails.admin-new-registration'],
+            'admin-bulk-upload-requested' => ['label' => '[Admin] Bulk certificate request submitted', 'view' => 'emails.admin-bulk-upload-requested'],
+            'admin-new-purchase' => ['label' => '[Admin] New subscription purchase', 'view' => 'emails.admin-new-purchase'],
         ];
     }
 
@@ -58,6 +62,9 @@ class MailPreviewController extends Controller
             'bulk-upload-completed' => ['notifiable' => $user, 'batch' => $this->fakeBatch()],
             'subscription-expiring' => ['userSubscription' => $this->fakeUserSubscription($user), 'daysRemaining' => 3],
             'quota-almost-full' => ['userSubscription' => $this->fakeUserSubscription($user, certificatesUsed: 92), 'percentUsed' => 92],
+            'admin-new-registration' => ['registrant' => $user->fill(['organization_name' => 'Acme University'])],
+            'admin-bulk-upload-requested' => ['batch' => $this->fakeBatch()],
+            'admin-new-purchase' => ['userSubscription' => $this->fakeUserSubscription($user->fill(['organization_name' => 'Acme University']))],
             default => ['userSubscription' => $this->fakeUserSubscription($user)],
         };
 
@@ -80,9 +87,17 @@ class MailPreviewController extends Controller
 
     private function fakeBatch(): CertificateBatch
     {
-        return CertificateBatch::query()->latest()->first() ?? new CertificateBatch([
-            'id' => 1, 'total_rows' => 20, 'succeeded_rows' => 18, 'failed_rows' => 2,
-        ]);
+        $batch = CertificateBatch::with(['user', 'template'])->latest()->first();
+
+        if ($batch && $batch->user && $batch->template) {
+            return $batch;
+        }
+
+        $batch = new CertificateBatch(['id' => 1, 'total_rows' => 20, 'succeeded_rows' => 18, 'failed_rows' => 2]);
+        $batch->setRelation('user', new User(['organization_name' => 'Acme University']));
+        $batch->setRelation('template', new Template(['name' => 'Certificate of Achievement']));
+
+        return $batch;
     }
 
     private function fakeUserSubscription(User $user, int $certificatesUsed = 10): UserSubscription

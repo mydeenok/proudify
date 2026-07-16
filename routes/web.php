@@ -4,10 +4,9 @@ use App\Http\Controllers\BulkUploadController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Dev\MailPreviewController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PricingController;
-use App\Models\Template;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicVerificationController;
 use App\Http\Controllers\PurchaseController;
@@ -16,23 +15,7 @@ use App\Http\Controllers\UserSubscriptionController;
 use App\Http\Controllers\Webhooks\RazorpayWebhookController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    if (auth()->check()) {
-        return auth()->user()->isAdmin()
-            ? redirect()->route('admin.dashboard')
-            : redirect()->route('dashboard');
-    }
-
-    $featuredTemplates = Schema::hasTable('templates')
-        ? Template::active()
-            ->whereNotNull('thumbnail_path')
-            ->latest()
-            ->limit(6)
-            ->get()
-        : collect();
-
-    return view('welcome', compact('featuredTemplates'));
-});
+Route::get('/', [HomeController::class, 'index']);
 
 Route::get('/certificates/verify/{uuid}/{code}', [PublicVerificationController::class, 'show'])
     ->name('certificates.verify');
