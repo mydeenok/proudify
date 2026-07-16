@@ -6,10 +6,12 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class ProfileController extends Controller
 {
@@ -28,7 +30,16 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated())->save();
+        try {
+            $request->user()->fill($request->validated())->save();
+        } catch (Throwable $exception) {
+            Log::error('Failed to save profile information.', [
+                'user_id' => $request->user()->id,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return Redirect::route('profile.edit')->with('status', 'profile-update-failed');
+        }
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
@@ -52,33 +63,42 @@ class ProfileController extends Controller
         $user = $request->user();
         $logos = $user->org_logos ?? [];
 
-        foreach ($request->input('remove_logos', []) as $pathToRemove) {
-            if (($index = array_search($pathToRemove, $logos, true)) !== false) {
-                Storage::disk('local')->delete($pathToRemove);
-                unset($logos[$index]);
-            }
-        }
-        $logos = array_values($logos);
-
-        if ($request->hasFile('org_logos')) {
-            foreach ($request->file('org_logos') as $file) {
-                if (count($logos) >= 5) {
-                    break;
+        try {
+            foreach ($request->input('remove_logos', []) as $pathToRemove) {
+                if (($index = array_search($pathToRemove, $logos, true)) !== false) {
+                    Storage::disk('local')->delete($pathToRemove);
+                    unset($logos[$index]);
                 }
-                $logos[] = $file->store('organization-logos', 'local');
             }
-        }
+            $logos = array_values($logos);
 
-        $user->org_logos = $logos;
-
-        if ($request->hasFile('signature')) {
-            if ($user->signature_path) {
-                Storage::disk('local')->delete($user->signature_path);
+            if ($request->hasFile('org_logos')) {
+                foreach ($request->file('org_logos') as $file) {
+                    if (count($logos) >= 5) {
+                        break;
+                    }
+                    $logos[] = $file->store('organization-logos', 'local');
+                }
             }
-            $user->signature_path = $request->file('signature')->store('signatures', 'local');
-        }
 
-        $user->save();
+            $user->org_logos = $logos;
+
+            if ($request->hasFile('signature')) {
+                if ($user->signature_path) {
+                    Storage::disk('local')->delete($user->signature_path);
+                }
+                $user->signature_path = $request->file('signature')->store('signatures', 'local');
+            }
+
+            $user->save();
+        } catch (Throwable $exception) {
+            Log::error('Failed to save organization branding.', [
+                'user_id' => $user->id,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return Redirect::route('profile.edit')->with('status', 'organization-update-failed');
+        }
 
         return Redirect::route('profile.edit')->with('status', 'organization-updated');
     }

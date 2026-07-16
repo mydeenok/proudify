@@ -47,9 +47,9 @@
             <x-primary-button>Save Branding</x-primary-button>
 
             @if (session('status') === 'organization-updated')
-                <p x-data="{ show: true }" x-show="show" x-transition x-init="setTimeout(() => show = false, 2000)" class="font-body-sm text-body-sm text-on-surface-variant">
-                    Saved.
-                </p>
+                <x-form-status status="Branding updated." />
+            @elseif (session('status') === 'organization-update-failed')
+                <x-form-status status="Couldn't save your branding. Please try again." variant="error" />
             @endif
         </div>
     </form>

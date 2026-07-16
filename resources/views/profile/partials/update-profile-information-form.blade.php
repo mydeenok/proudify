@@ -43,9 +43,9 @@
             <x-primary-button>Save</x-primary-button>
 
             @if (session('status') === 'profile-updated')
-                <p x-data="{ show: true }" x-show="show" x-transition x-init="setTimeout(() => show = false, 2000)" class="font-body-sm text-body-sm text-on-surface-variant">
-                    Saved.
-                </p>
+                <x-form-status status="Profile updated." />
+            @elseif (session('status') === 'profile-update-failed')
+                <x-form-status status="Couldn't save your profile. Please try again." variant="error" />
             @endif
         </div>
     </form>

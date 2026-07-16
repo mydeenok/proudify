@@ -30,9 +30,7 @@
             <x-primary-button>Save</x-primary-button>
 
             @if (session('status') === 'password-updated')
-                <p x-data="{ show: true }" x-show="show" x-transition x-init="setTimeout(() => show = false, 2000)" class="font-body-sm text-body-sm text-on-surface-variant">
-                    Saved.
-                </p>
+                <x-form-status status="Password updated." />
             @endif
         </div>
     </form>
