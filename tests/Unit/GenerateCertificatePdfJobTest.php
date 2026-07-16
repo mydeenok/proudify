@@ -17,9 +17,9 @@ class GenerateCertificatePdfJobTest extends TestCase
 
     public function test_pdf_job_refreshes_the_certificate_before_rendering(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
-        $qrPath = UploadedFile::fake()->image('qr.png')->store('certificates/qr', 'public');
+        $qrPath = UploadedFile::fake()->image('qr.png')->store('certificates/qr', 'local');
 
         $certificate = Certificate::factory()->create([
             'qr_code_path' => $qrPath,

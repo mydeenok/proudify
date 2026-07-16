@@ -19,6 +19,14 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    /**
+     * 'role' and 'status' are deliberately excluded here even though
+     * several code paths need to set them (registration, SSO signup, admin
+     * approve/reject/suspend) - those all use forceFill()/explicit array
+     * merges instead, so a future `update($request->all())` or
+     * `fill($request->all())` mistake can never let a tenant self-escalate
+     * to admin or flip their own status to active.
+     */
     protected $fillable = [
         'first_name',
         'last_name',
@@ -26,8 +34,6 @@ class User extends Authenticatable
         'email',
         'phone',
         'password',
-        'role',
-        'status',
         'org_logos',
         'signature_path',
     ];

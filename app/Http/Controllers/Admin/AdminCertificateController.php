@@ -94,9 +94,9 @@ class AdminCertificateController extends Controller
         $zip->open($zipFullPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         foreach ($certificates as $certificate) {
-            if (Storage::disk('public')->exists($certificate->pdf_path)) {
+            if (Storage::disk('local')->exists($certificate->pdf_path)) {
                 $filename = Str::slug($certificate->recipient_name).'-'.$certificate->uuid.'.pdf';
-                $zip->addFile(Storage::disk('public')->path($certificate->pdf_path), $filename);
+                $zip->addFile(Storage::disk('local')->path($certificate->pdf_path), $filename);
             }
         }
 

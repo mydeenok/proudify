@@ -37,8 +37,8 @@
             <div id="checkout-error" class="hidden bg-error/10 text-error rounded-lg px-md py-sm font-body-sm text-body-sm mb-lg border border-error/20"></div>
 
             <button id="pay-button" type="button" class="btn-primary w-full">
-                <span class="material-symbols-outlined text-[18px]">lock</span>
-                Pay with Razorpay
+                <span id="pay-button-icon" class="material-symbols-outlined text-[18px]">lock</span>
+                <span id="pay-button-label">Pay with Razorpay</span>
             </button>
 
             <div class="mt-lg pt-lg border-t border-outline-variant flex items-center gap-sm text-on-surface-variant">
@@ -50,22 +50,48 @@
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
-        document.getElementById('pay-button').addEventListener('click', async function () {
-            const errorBox = document.getElementById('checkout-error');
+        const payButton = document.getElementById('pay-button');
+        const payButtonLabel = document.getElementById('pay-button-label');
+        const errorBox = document.getElementById('checkout-error');
+        const defaultLabel = payButtonLabel.textContent;
+
+        function setBusy(isBusy, label) {
+            payButton.disabled = isBusy;
+            payButton.classList.toggle('opacity-70', isBusy);
+            payButton.classList.toggle('cursor-not-allowed', isBusy);
+            payButtonLabel.textContent = label ?? defaultLabel;
+        }
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.classList.remove('hidden');
+        }
+
+        payButton.addEventListener('click', async function () {
+            if (payButton.disabled) return;
+
             errorBox.classList.add('hidden');
+            setBusy(true, 'Starting checkout…');
 
-            const orderResponse = await fetch('{{ route('purchase.create-order', $subscription) }}?period={{ $period }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    Accept: 'application/json',
-                },
-            });
-            const order = await orderResponse.json();
+            let order;
+            try {
+                const orderResponse = await fetch('{{ route('purchase.create-order', $subscription) }}?period={{ $period }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        Accept: 'application/json',
+                    },
+                });
+                order = await orderResponse.json();
 
-            if (!orderResponse.ok) {
-                errorBox.textContent = order.message ?? 'Unable to start checkout.';
-                errorBox.classList.remove('hidden');
+                if (!orderResponse.ok) {
+                    showError(order.message ?? 'Unable to start checkout.');
+                    setBusy(false);
+                    return;
+                }
+            } catch (error) {
+                showError('Unable to reach the server. Please check your connection and try again.');
+                setBusy(false);
                 return;
             }
 
@@ -81,28 +107,41 @@
                     name: '{{ auth()->user()->name }}',
                     email: '{{ auth()->user()->email }}',
                 },
+                modal: {
+                    ondismiss: function () {
+                        setBusy(false);
+                    },
+                },
                 handler: async function (response) {
-                    const verifyResponse = await fetch('{{ route('purchase.verify-payment', $subscription) }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            Accept: 'application/json',
-                        },
-                        body: JSON.stringify({
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                            period: '{{ $period }}',
-                        }),
-                    });
-                    const result = await verifyResponse.json();
+                    setBusy(true, 'Verifying payment…');
 
-                    if (verifyResponse.ok && result.redirect) {
-                        window.location.href = result.redirect;
-                    } else {
-                        errorBox.textContent = result.message ?? 'Payment verification failed.';
-                        errorBox.classList.remove('hidden');
+                    try {
+                        const verifyResponse = await fetch('{{ route('purchase.verify-payment', $subscription) }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                Accept: 'application/json',
+                            },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
+                                period: '{{ $period }}',
+                            }),
+                        });
+                        const result = await verifyResponse.json();
+
+                        if (verifyResponse.ok && result.redirect) {
+                            window.location.href = result.redirect;
+                            return;
+                        }
+
+                        showError(result.message ?? 'Payment verification failed.');
+                    } catch (error) {
+                        showError('Unable to reach the server to verify your payment. Please contact support if you were charged.');
+                    } finally {
+                        setBusy(false);
                     }
                 },
             });

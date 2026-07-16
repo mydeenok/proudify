@@ -25,6 +25,7 @@
         class="max-w-[900px] mx-auto w-full p-margin space-y-md"
         x-data="{ submitting: false }"
         x-on:submit="submitting = true"
+        data-no-loading-state
     >
         @csrf
         <input type="hidden" name="template_id" value="{{ $template->id }}">

@@ -40,7 +40,9 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        $this->rejectUnlessActive($request, $user);
+        if ($redirect = $this->redirectUnlessActive($request, $user)) {
+            return $redirect;
+        }
 
         $request->session()->regenerate();
 
@@ -72,7 +74,9 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        $this->rejectUnlessActive($request, $user);
+        if ($redirect = $this->redirectUnlessActive($request, $user)) {
+            return $redirect;
+        }
 
         $request->session()->regenerate();
 
@@ -93,19 +97,27 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Enforce the 3-gate onboarding state at login time, since this is the
-     * one place we can give the user a specific, actionable message.
+     * Enforce the 3-gate onboarding state at login time. A pending_otp
+     * account gets routed back into the verification flow (with a resend
+     * option) rather than a dead-end error, since that's the one gate the
+     * user can still clear themselves.
      */
-    private function rejectUnlessActive(LoginRequest $request, $user): void
+    private function redirectUnlessActive(LoginRequest $request, $user): ?RedirectResponse
     {
         if ($user->isActive()) {
-            return;
+            return null;
         }
 
         Auth::logout();
 
+        if ($user->status === 'pending_otp') {
+            $request->session()->put('otp_user_id', $user->id);
+
+            return redirect()->route('otp.verify')
+                ->with('status', 'Please verify your email to continue. Enter the code we sent you, or resend a new one.');
+        }
+
         $message = match ($user->status) {
-            'pending_otp' => 'Please verify your email before logging in.',
             'pending_approval' => 'Your account is awaiting admin approval.',
             'rejected' => 'Your registration request was not approved.',
             'suspended' => 'Your account has been suspended. Please contact support.',

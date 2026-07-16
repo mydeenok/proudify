@@ -29,7 +29,7 @@ class CertificateIssuedMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.certificate-issued',
+            view: 'emails.certificate-issued',
             with: ['certificate' => $this->certificate],
         );
     }
@@ -44,7 +44,7 @@ class CertificateIssuedMail extends Mailable
         }
 
         return [
-            Attachment::fromPath(Storage::disk('public')->path($this->certificate->pdf_path))
+            Attachment::fromPath(Storage::disk('local')->path($this->certificate->pdf_path))
                 ->as("{$this->certificate->title}.pdf")
                 ->withMime('application/pdf'),
         ];

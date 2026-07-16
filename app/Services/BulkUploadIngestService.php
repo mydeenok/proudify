@@ -32,6 +32,50 @@ class BulkUploadIngestService
     }
 
     /**
+     * Best-effort default for the "Map Columns" form so a spreadsheet whose
+     * headers already match (or closely resemble) our field names doesn't
+     * need every dropdown hand-picked - without this every <select> just
+     * shows its first option by default, which looks identical across all
+     * six fields and reads as "the file didn't extract columns" even
+     * though it did.
+     *
+     * @param  array<int, string>  $headers
+     * @return array<string, int> field name => column index, only for fields with a confident match
+     */
+    public function guessColumnMapping(array $headers): array
+    {
+        $aliases = [
+            'title' => ['title', 'certificate title', 'certificate_title', 'course', 'course title'],
+            'recipient_name' => ['recipient_name', 'recipient name', 'name', 'full name', 'student name', 'student'],
+            'recipient_email' => ['recipient_email', 'recipient email', 'email', 'email address'],
+            'description' => ['description', 'desc', 'details', 'notes'],
+            'date_of_issue' => ['date_of_issue', 'issue date', 'date of issue', 'issued', 'issued on'],
+            'date_of_expiry' => ['date_of_expiry', 'expiry date', 'date of expiry', 'expires', 'expiry'],
+        ];
+
+        $normalized = array_map(
+            fn ($header) => strtolower(trim(str_replace(['_', '-'], ' ', $header))),
+            $headers
+        );
+
+        $mapping = [];
+
+        foreach (self::ALL_FIELDS as $field) {
+            foreach ($aliases[$field] as $alias) {
+                $index = array_search(str_replace(['_', '-'], ' ', $alias), $normalized, true);
+
+                if ($index !== false) {
+                    $mapping[$field] = $index;
+
+                    break;
+                }
+            }
+        }
+
+        return $mapping;
+    }
+
+    /**
      * Reads every data row, applies the column mapping, validates and
      * de-duplicates, then persists CertificateBatchItem rows. Throws
      * ValidationException (caught by the controller) if the row count is

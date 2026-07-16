@@ -95,7 +95,18 @@
                             <td class="text-right">
                                 <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     @if (! $user->isAdmin())
-                                        @if ($user->status === 'suspended')
+                                        @if ($user->status === 'pending_approval')
+                                            <form method="POST" action="{{ route('admin.users.approve', $user) }}" class="inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="text-primary hover:text-primary/80 transition-colors p-1 font-label-sm text-label-sm" title="Approve">Approve</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('admin.users.reject', $user) }}" class="inline" onsubmit="return confirm('Reject this registration? The account will be deleted.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-error hover:text-error/80 transition-colors p-1 font-label-sm text-label-sm" title="Reject">Reject</button>
+                                            </form>
+                                        @elseif ($user->status === 'suspended')
                                             <form method="POST" action="{{ route('admin.users.reactivate', $user) }}" class="inline">
                                                 @csrf
                                                 @method('PATCH')

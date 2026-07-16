@@ -16,13 +16,13 @@ class ConvertCertificatePdfToImageJobTest extends TestCase
 
     public function test_it_converts_the_pdf_and_marks_the_certificate_completed(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $certificate = Certificate::factory()->create();
 
         $pdfRelativePath = "certificates/{$certificate->user_id}/{$certificate->uuid}.pdf";
-        $pdfAbsolutePath = Storage::disk('public')->path($pdfRelativePath);
-        Storage::disk('public')->makeDirectory(dirname($pdfRelativePath));
+        $pdfAbsolutePath = Storage::disk('local')->path($pdfRelativePath);
+        Storage::disk('local')->makeDirectory(dirname($pdfRelativePath));
 
         $imagick = new Imagick;
         $imagick->newImage(200, 100, 'white');
@@ -38,6 +38,6 @@ class ConvertCertificatePdfToImageJobTest extends TestCase
         $certificate->refresh();
         $this->assertSame('completed', $certificate->image_generation_status);
         $this->assertNotNull($certificate->image_path);
-        Storage::disk('public')->assertExists($certificate->image_path);
+        Storage::disk('local')->assertExists($certificate->image_path);
     }
 }

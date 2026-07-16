@@ -24,7 +24,7 @@ class SsoService
         $this->domain = rtrim((string) config('services.cognito.domain'), '/');
     }
 
-    public function buildAuthUrl(string $provider, string $redirectUri): string
+    public function buildAuthUrl(string $provider, string $redirectUri, string $state): string
     {
         return $this->domain.'/oauth2/authorize?'.http_build_query([
             'response_type' => 'code',
@@ -32,6 +32,7 @@ class SsoService
             'redirect_uri' => $redirectUri,
             'identity_provider' => $provider,
             'scope' => 'openid email profile',
+            'state' => $state,
         ]);
     }
 

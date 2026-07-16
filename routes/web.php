@@ -3,6 +3,8 @@
 use App\Http\Controllers\BulkUploadController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Dev\MailPreviewController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PricingController;
 use App\Models\Template;
 use Illuminate\Support\Facades\Schema;
@@ -36,17 +38,30 @@ Route::get('/certificates/verify/{uuid}/{code}', [PublicVerificationController::
     ->name('certificates.verify');
 Route::get('/certificates/verify/{uuid}/{code}/download', [PublicVerificationController::class, 'download'])
     ->name('certificates.verify.download');
+Route::get('/certificates/verify/{uuid}/{code}/image', [PublicVerificationController::class, 'image'])
+    ->name('certificates.verify.image');
+Route::get('/certificates/verify/{uuid}/{code}/qr', [PublicVerificationController::class, 'qr'])
+    ->name('certificates.verify.qr');
 
 Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');
 
 Route::post('/webhooks/razorpay', [RazorpayWebhookController::class, 'handle'])->name('webhooks.razorpay');
 
 Route::middleware(['auth', 'approved'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Tenant-exclusive: an admin who navigates here gets bounced back to
+    // their own dashboard instead of being served this account's own
+    // certificate/subscription data as if they were a customer. Everything
+    // else in this group (templates, certificates, bulk-upload, profile)
+    // is deliberately shared with admin - see their own doc comments.
+    Route::middleware('tenant-only')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/organization', [ProfileController::class, 'updateOrganization'])->name('profile.organization.update');
+    Route::get('/profile/organization/logo/{index}', [ProfileController::class, 'logo'])->name('profile.organization.logo');
+    Route::get('/profile/organization/signature', [ProfileController::class, 'signature'])->name('profile.organization.signature');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
@@ -69,9 +84,12 @@ Route::middleware(['auth', 'approved'])->group(function () {
         ->middleware('throttle:10,1')
         ->name('certificates.regenerate');
     Route::get('/certificates/{certificate:uuid}/download', [CertificateController::class, 'download'])->name('certificates.download');
+    Route::get('/certificates/{certificate:uuid}/image', [CertificateController::class, 'image'])->name('certificates.image');
+    Route::get('/certificates/{certificate:uuid}/qr', [CertificateController::class, 'qr'])->name('certificates.qr');
 
     Route::prefix('bulk-upload')->name('bulk-upload.')->group(function () {
         Route::get('/', [BulkUploadController::class, 'selectTemplate'])->name('select-template');
+        Route::get('/history', [BulkUploadController::class, 'history'])->name('history');
         Route::get('/create', [BulkUploadController::class, 'create'])->name('create');
         Route::post('/', [BulkUploadController::class, 'store'])->middleware('throttle:10,1')->name('store');
         Route::get('/{batch}/map-columns', [BulkUploadController::class, 'mapColumns'])->name('map-columns');
@@ -83,14 +101,33 @@ Route::middleware(['auth', 'approved'])->group(function () {
         Route::get('/{batch}/error-report', [BulkUploadController::class, 'downloadErrorReport'])->name('error-report');
     });
 
-    Route::get('/subscriptions', [UserSubscriptionController::class, 'index'])->name('subscriptions.index');
+    Route::middleware('tenant-only')->group(function () {
+        Route::get('/subscriptions', [UserSubscriptionController::class, 'index'])->name('subscriptions.index');
 
-    Route::prefix('purchase/{subscription}')->name('purchase.')->group(function () {
-        Route::get('/', [PurchaseController::class, 'show'])->name('show');
-        Route::post('/', [PurchaseController::class, 'process'])->name('process');
-        Route::post('/create-order', [PurchaseController::class, 'createOrder'])->name('create-order');
-        Route::post('/verify-payment', [PurchaseController::class, 'verifyPayment'])->name('verify-payment');
+        Route::prefix('purchase/{subscription}')->name('purchase.')->group(function () {
+            Route::get('/', [PurchaseController::class, 'show'])->name('show');
+            Route::post('/', [PurchaseController::class, 'process'])->name('process');
+            Route::post('/create-order', [PurchaseController::class, 'createOrder'])->name('create-order');
+            Route::post('/verify-payment', [PurchaseController::class, 'verifyPayment'])->name('verify-payment');
+        });
     });
 });
+
+// Plain 'auth' (not 'approved' or 'admin') so both tenant users and admin
+// staff can open/clear their own notifications regardless of which
+// role-specific gate the rest of their routes sit behind.
+Route::middleware('auth')->group(function () {
+    Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+});
+
+// Dev-only mail preview - never registered outside local, so it can't
+// leak in production regardless of who's authenticated.
+if (app()->environment('local')) {
+    Route::prefix('dev/mails')->name('dev.mail-preview.')->group(function () {
+        Route::get('/', [MailPreviewController::class, 'index'])->name('index');
+        Route::get('/{type}', [MailPreviewController::class, 'show'])->name('show');
+    });
+}
 
 require __DIR__.'/auth.php';

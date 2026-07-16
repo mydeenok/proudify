@@ -120,8 +120,8 @@ $registryStatus = function ($certificate) {
                                 <input type="checkbox" name="certificate_ids[]" value="{{ $certificate->id }}" form="bulk-download-form" class="row-checkbox w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer bg-surface">
                             </td>
                             <td class="px-sm py-xs">
-                                @if ($certificate->image_path && Storage::disk('public')->exists($certificate->image_path))
-                                    <img src="{{ Storage::url($certificate->image_path) }}" alt="" class="w-14 h-9 object-cover rounded border border-outline-variant shadow-sm bg-surface {{ $status === 'failed' ? 'opacity-50 grayscale' : '' }}">
+                                @if ($certificate->image_path && Storage::disk('local')->exists($certificate->image_path))
+                                    <img src="{{ route('certificates.image', $certificate) }}" alt="" class="w-14 h-9 object-cover rounded border border-outline-variant shadow-sm bg-surface {{ $status === 'failed' ? 'opacity-50 grayscale' : '' }}">
                                 @elseif ($certificate->template?->thumbnail_path)
                                     <img src="{{ Storage::url($certificate->template->thumbnail_path) }}" alt="" class="w-14 h-9 object-cover rounded border border-outline-variant shadow-sm bg-surface">
                                 @elseif (! $certificate->pdf_path)

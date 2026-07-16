@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserSubscription;
+use App\Notifications\SubscriptionCancelledNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -66,6 +67,8 @@ class UserSubscriptionController extends Controller
     public function cancel(UserSubscription $userSubscription): RedirectResponse
     {
         $userSubscription->update(['is_active' => false, 'auto_renew' => false]);
+
+        $userSubscription->user->notify(new SubscriptionCancelledNotification($userSubscription));
 
         return back()->with('status', 'Subscription cancelled.');
     }

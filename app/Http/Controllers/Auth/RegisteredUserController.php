@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\OtpDeliveryFailedException;
 use App\Services\OtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
@@ -42,16 +44,39 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $user = User::create([
-            ...$validated,
-            'role' => 'user',
-            'status' => 'pending_otp',
-        ]);
-
-        $this->otpService->issueFor($user);
+        $user = new User($validated);
+        $user->forceFill(['role' => 'user', 'status' => 'pending_otp'])->save();
 
         session(['otp_user_id' => $user->id]);
 
+        try {
+            $code = $this->otpService->issueFor($user);
+        } catch (OtpDeliveryFailedException $exception) {
+            Log::error('Failed to send registration OTP email.', [
+                'user_id' => $user->id,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            $this->stashDebugCode($exception->otpCode);
+
+            return redirect()->route('otp.verify')
+                ->with('status', 'We hit a snag sending your verification email. Tap "Resend it" below to try again.');
+        }
+
+        $this->stashDebugCode($code);
+
         return redirect()->route('otp.verify');
+    }
+
+    /**
+     * Local-only: lets the verify-otp page show the real code on-screen
+     * since there's no working mail delivery to check in dev. Never runs
+     * outside app()->environment('local'), so it can't leak in production.
+     */
+    private function stashDebugCode(string $code): void
+    {
+        if (app()->environment('local')) {
+            session(['otp_debug_code' => $code]);
+        }
     }
 }

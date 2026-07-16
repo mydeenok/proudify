@@ -20,6 +20,11 @@
                             My Certificates
                         </x-nav-link>
                     @endif
+                    @if (Route::has('bulk-upload.history'))
+                        <x-nav-link :href="route('bulk-upload.history')" :active="request()->routeIs('bulk-upload.*')">
+                            Bulk Uploads
+                        </x-nav-link>
+                    @endif
                     @if (Route::has('templates.index'))
                         <x-nav-link :href="route('templates.index')" :active="request()->routeIs('templates.*')">
                             Templates
@@ -42,9 +47,7 @@
 
             <div class="flex items-center gap-sm">
                 @auth
-                    <button type="button" class="p-xs text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-variant" aria-label="Notifications">
-                        <span class="material-symbols-outlined">notifications</span>
-                    </button>
+                    <x-notification-bell />
 
                     <div class="relative" x-data="{ open: false }">
                         <button type="button" @click="open = !open" @click.outside="open = false" class="flex items-center gap-xs" aria-label="Account menu">

@@ -8,6 +8,13 @@
 
     <x-auth-session-status class="mb-lg" :status="session('status')" />
 
+    @isset($debugCode)
+        <div class="mb-lg px-md py-sm rounded-lg border border-dashed border-tertiary bg-tertiary-container/10 text-center">
+            <p class="font-label-sm text-label-sm text-tertiary uppercase tracking-wide">Local dev only — mail isn't configured</p>
+            <p class="font-headline-md text-headline-md text-on-surface tracking-[0.3em] mt-1">{{ $debugCode }}</p>
+        </div>
+    @endisset
+
     <form method="POST" action="{{ route('otp.verify.store') }}" class="flex flex-col gap-lg">
         @csrf
 

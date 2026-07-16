@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Certificate;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Support\Facades\Storage;
 
@@ -20,14 +21,15 @@ class QrCodeService
             writer: new PngWriter,
             data: $certificate->verify_url,
             encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::Medium,
             size: 300,
             margin: 10,
         ))->build();
 
         $relativePath = "certificates/{$certificate->user_id}/qr/{$certificate->uuid}.png";
 
-        Storage::disk('public')->makeDirectory(dirname($relativePath));
-        Storage::disk('public')->put($relativePath, $result->getString());
+        Storage::disk('local')->makeDirectory(dirname($relativePath));
+        Storage::disk('local')->put($relativePath, $result->getString());
 
         return $relativePath;
     }
@@ -44,6 +46,7 @@ class QrCodeService
             writer: new PngWriter,
             data: $data,
             encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::Medium,
             size: 300,
             margin: 10,
         ))->build();

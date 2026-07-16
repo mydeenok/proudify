@@ -1,4 +1,6 @@
 @php
+use Illuminate\Support\Facades\Storage;
+
 $statusStyles = [
     'active' => ['dot' => 'bg-emerald-500', 'bg' => 'bg-surface/90', 'text' => 'text-on-surface', 'label' => 'Verified'],
     'expired' => ['dot' => 'bg-gray-400', 'bg' => 'bg-surface/90', 'text' => 'text-on-surface-variant', 'label' => 'Expired'],
@@ -21,7 +23,7 @@ $strokeOffset = 100 - $quotaPercent;
                 <span class="material-symbols-outlined text-[18px]">upload_file</span>
                 Bulk Upload
             </a>
-            <a href="{{ route('certificates.create') }}" class="bg-primary-container text-on-primary font-label-md text-label-md px-md py-sm rounded-lg hover:bg-primary transition-colors shadow-sm flex items-center gap-xs">
+            <a href="{{ route('templates.index') }}" class="bg-primary-container text-on-primary font-label-md text-label-md px-md py-sm rounded-lg hover:bg-primary transition-colors shadow-sm flex items-center gap-xs">
                 <span class="material-symbols-outlined text-[18px]">add</span>
                 Create Certificate
             </a>
@@ -117,7 +119,13 @@ $strokeOffset = 100 - $quotaPercent;
                     <article class="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-[0px_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_12px_rgba(0,0,0,0.08)] transition-all group">
                         <a href="{{ route('certificates.show', $certificate) }}" class="block">
                             <div class="aspect-[4/3] bg-surface-container-low w-full relative border-b border-outline-variant overflow-hidden flex items-center justify-center">
-                                <span class="material-symbols-outlined text-[48px] text-on-surface-variant/20">history_edu</span>
+                                @if ($certificate->image_path && Storage::disk('local')->exists($certificate->image_path))
+                                    <img src="{{ route('certificates.image', $certificate) }}" alt="{{ $certificate->title }}" class="w-full h-full object-cover">
+                                @elseif ($certificate->template?->thumbnail_path)
+                                    <img src="{{ Storage::url($certificate->template->thumbnail_path) }}" alt="{{ $certificate->title }}" class="w-full h-full object-cover">
+                                @else
+                                    <span class="material-symbols-outlined text-[48px] text-on-surface-variant/20">history_edu</span>
+                                @endif
                                 <div class="absolute top-sm right-sm {{ $status['bg'] }} backdrop-blur-sm px-2 py-1 rounded border border-outline-variant flex items-center gap-1">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $status['dot'] }}"></span>
                                     <span class="font-label-sm text-label-sm {{ $status['text'] }}">{{ $status['label'] }}</span>

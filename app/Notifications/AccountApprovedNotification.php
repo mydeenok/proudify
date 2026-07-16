@@ -28,8 +28,6 @@ class AccountApprovedNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Your Proudify account is approved')
-            ->greeting("Welcome, {$notifiable->first_name}!")
-            ->line('An administrator has approved your Proudify account. You can now log in and start issuing certificates.')
-            ->action('Log in to Proudify', route('login'));
+            ->view('emails.account-approved', ['user' => $notifiable]);
     }
 }

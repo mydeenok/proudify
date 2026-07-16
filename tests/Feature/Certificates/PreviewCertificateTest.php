@@ -61,11 +61,11 @@ class PreviewCertificateTest extends TestCase
 
     public function test_preview_uses_the_issuers_real_signature_and_logo(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         Subscription::factory()->free()->create();
 
-        $signaturePath = UploadedFile::fake()->image('sig.png')->store('signatures', 'public');
-        $logoPath = UploadedFile::fake()->image('logo.png')->store('organization-logos', 'public');
+        $signaturePath = UploadedFile::fake()->image('sig.png')->store('signatures', 'local');
+        $logoPath = UploadedFile::fake()->image('logo.png')->store('organization-logos', 'local');
 
         $user = User::factory()->create([
             'signature_path' => $signaturePath,

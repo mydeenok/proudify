@@ -17,6 +17,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CertificateController extends Controller
 {
@@ -267,7 +268,7 @@ class CertificateController extends Controller
             }
 
             if ($file = $request->file("custom_image_fields.{$field['key']}")) {
-                $paths[$field['key']] = $file->store('certificates/custom-fields', 'public');
+                $paths[$field['key']] = $file->store('certificates/custom-fields', 'local');
             }
         }
 
@@ -338,7 +339,31 @@ class CertificateController extends Controller
 
         abort_unless($certificate->pdf_path, 404, 'The PDF is still being generated.');
 
-        return Storage::disk('public')->download($certificate->pdf_path, "{$certificate->title}.pdf");
+        return Storage::disk('local')->download($certificate->pdf_path, "{$certificate->title}.pdf");
+    }
+
+    /**
+     * Owner/admin-only equivalent of the public verify page's image route -
+     * used by every authenticated <img> tag (dashboard, certificate index,
+     * show page, admin index) now that certificate assets live on the
+     * private disk and can no longer be linked to directly.
+     */
+    public function image(Request $request, Certificate $certificate): StreamedResponse
+    {
+        $this->authorizeAccess($request, $certificate);
+
+        abort_unless($certificate->image_path, 404);
+
+        return Storage::disk('local')->response($certificate->image_path);
+    }
+
+    public function qr(Request $request, Certificate $certificate): StreamedResponse
+    {
+        $this->authorizeAccess($request, $certificate);
+
+        abort_unless($certificate->qr_code_path, 404);
+
+        return Storage::disk('local')->response($certificate->qr_code_path);
     }
 
     private function authorizeAccess(Request $request, Certificate $certificate): void
@@ -387,7 +412,7 @@ class CertificateController extends Controller
         return [
             'ready' => (bool) $certificate->image_path,
             'image_url' => $certificate->image_path
-                ? Storage::url($certificate->image_path).'?v='.$cacheBust
+                ? route('certificates.image', $certificate).'?v='.$cacheBust
                 : null,
             'pdf_ready' => (bool) $certificate->pdf_path,
             'image_generation_status' => $certificate->image_generation_status,
@@ -395,7 +420,7 @@ class CertificateController extends Controller
             'verification_code' => $certificate->verification_code,
             'template_name' => $certificate->template->name,
             'qr_url' => $certificate->qr_code_path
-                ? Storage::url($certificate->qr_code_path).'?v='.$cacheBust
+                ? route('certificates.qr', $certificate).'?v='.$cacheBust
                 : null,
         ];
     }

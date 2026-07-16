@@ -31,7 +31,7 @@ class CertificateRenderService
 
         $qrcodeDataUri = $this->imageDataUri($certificate->qr_code_path);
         $signatureDataUri = $this->imageDataUri($certificate->signature_path);
-        $qrcodeImg = $this->imageTag($certificate->qr_code_path, 'Verification QR code', 'width:100px;height:100px;object-fit:contain;');
+        $qrcodeImg = $this->imageTag($certificate->qr_code_path, 'Verification QR code', 'width:130px;height:130px;object-fit:contain;');
         $signatureImg = $this->imageTag($certificate->signature_path, 'Signature', 'max-width:180px;max-height:80px;object-fit:contain;');
 
         $replacements = [
@@ -98,7 +98,7 @@ class CertificateRenderService
 
         $qrcodeDataUri = $this->qrCodeService->generateDataUri(url('/certificates/verify/preview/SAMPLE'));
         $signatureDataUri = $this->imageDataUri($issuer->signature_path);
-        $qrcodeImg = '<img src="'.$qrcodeDataUri.'" alt="Sample verification QR code" style="width:100px;height:100px;object-fit:contain;">';
+        $qrcodeImg = '<img src="'.$qrcodeDataUri.'" alt="Sample verification QR code" style="width:130px;height:130px;object-fit:contain;">';
         $signatureImg = $this->imageTag($issuer->signature_path, 'Signature', 'max-width:180px;max-height:80px;object-fit:contain;');
 
         $replacements = [
@@ -280,9 +280,9 @@ class CertificateRenderService
         $html = $this->renderHtml($certificate);
 
         $relativePath = "certificates/{$certificate->user_id}/{$certificate->uuid}.pdf";
-        $absolutePath = Storage::disk('public')->path($relativePath);
+        $absolutePath = Storage::disk('local')->path($relativePath);
 
-        Storage::disk('public')->makeDirectory(dirname($relativePath));
+        Storage::disk('local')->makeDirectory(dirname($relativePath));
 
         $browsershot = Browsershot::html($html)
             ->format($certificate->template->page_format)
@@ -365,9 +365,9 @@ class CertificateRenderService
      */
     public function convertPdfToImage(Certificate $certificate): string
     {
-        $pdfAbsolutePath = Storage::disk('public')->path($certificate->pdf_path);
+        $pdfAbsolutePath = Storage::disk('local')->path($certificate->pdf_path);
         $imageRelativePath = preg_replace('/\.pdf$/', '.jpg', $certificate->pdf_path);
-        $imageAbsolutePath = Storage::disk('public')->path($imageRelativePath);
+        $imageAbsolutePath = Storage::disk('local')->path($imageRelativePath);
 
         $density = (int) config('certificates.image_density');
         $quality = (int) config('certificates.image_quality');
@@ -415,12 +415,12 @@ class CertificateRenderService
      */
     private function imageDataUri(?string $path): string
     {
-        if (! $path || ! Storage::disk('public')->exists($path)) {
+        if (! $path || ! Storage::disk('local')->exists($path)) {
             return '';
         }
 
-        $mimeType = Storage::disk('public')->mimeType($path);
-        $base64 = base64_encode(Storage::disk('public')->get($path));
+        $mimeType = Storage::disk('local')->mimeType($path);
+        $base64 = base64_encode(Storage::disk('local')->get($path));
 
         return 'data:'.$mimeType.';base64,'.$base64;
     }

@@ -20,6 +20,11 @@
                     Certificates
                 </x-admin-nav-link>
             @endif
+            @if (Route::has('bulk-upload.history'))
+                <x-admin-nav-link :href="route('bulk-upload.history')" :active="request()->routeIs('bulk-upload.*') || request()->routeIs('admin.bulk-upload.*')" icon="upload_file">
+                    Bulk Uploads
+                </x-admin-nav-link>
+            @endif
             @if (Route::has('admin.templates.index'))
                 <x-admin-nav-link :href="route('admin.templates.index')" :active="request()->routeIs('admin.templates.*')" icon="layers">
                     Templates
@@ -73,6 +78,9 @@
                 @if (Route::has('admin.certificates.index'))
                     <x-admin-nav-link :href="route('admin.certificates.index')" :active="request()->routeIs('admin.certificates.*')" icon="workspace_premium">Certificates</x-admin-nav-link>
                 @endif
+                @if (Route::has('bulk-upload.history'))
+                    <x-admin-nav-link :href="route('bulk-upload.history')" :active="request()->routeIs('bulk-upload.*') || request()->routeIs('admin.bulk-upload.*')" icon="upload_file">Bulk Uploads</x-admin-nav-link>
+                @endif
                 @if (Route::has('admin.templates.index'))
                     <x-admin-nav-link :href="route('admin.templates.index')" :active="request()->routeIs('admin.templates.*')" icon="layers">Templates</x-admin-nav-link>
                 @endif
@@ -90,5 +98,10 @@
             {{ $slot }}
         </div>
     </main>
+
+    {{-- top offset clears the sticky mobile header (72px) below md; desktop has no header bar to clear --}}
+    <div class="fixed top-[88px] md:top-md right-md z-40">
+        <x-notification-bell />
+    </div>
 </body>
 </html>

@@ -1,6 +1,4 @@
 @php
-use Illuminate\Support\Facades\Storage;
-
 $statusConfig = [
     'valid' => ['label' => 'Verified Authentic', 'icon' => 'verified', 'class' => 'bg-emerald-50 text-emerald-600 border-emerald-200'],
     'revoked' => ['label' => 'Revoked', 'icon' => 'block', 'class' => 'bg-red-50 text-red-600 border-red-200'],
@@ -21,7 +19,7 @@ $statusConfig = [
                     <div class="lg:col-span-8">
                         <div class="glass-panel p-sm rounded-xl overflow-hidden shadow-lg bento-shadow">
                             @if ($certificate->image_path)
-                                <img src="{{ Storage::url($certificate->image_path) }}" alt="{{ $certificate->title }}" class="w-full h-auto object-contain rounded-lg border border-outline-variant" />
+                                <img src="{{ route('certificates.verify.image', ['uuid' => $certificate->uuid, 'code' => $certificate->verification_code]) }}" alt="{{ $certificate->title }}" class="w-full h-auto object-contain rounded-lg border border-outline-variant" />
                             @else
                                 <div class="aspect-[1.414/1] bg-surface-container-low flex items-center justify-center rounded-lg border border-outline-variant">
                                     <span class="material-symbols-outlined text-[64px] text-on-surface-variant/20">history_edu</span>
@@ -85,7 +83,7 @@ $statusConfig = [
                         @if ($certificate->qr_code_path)
                             <div class="glass-panel p-md rounded-xl flex items-center gap-md bento-shadow">
                                 <div class="w-16 h-16 bg-white border border-outline-variant rounded p-1 shrink-0">
-                                    <img src="{{ Storage::url($certificate->qr_code_path) }}" alt="Verification QR code" class="w-full h-full object-contain" />
+                                    <img src="{{ route('certificates.verify.qr', ['uuid' => $certificate->uuid, 'code' => $certificate->verification_code]) }}" alt="Verification QR code" class="w-full h-full object-contain" />
                                 </div>
                                 <div class="flex flex-col">
                                     <span class="font-label-md text-label-md text-on-surface font-semibold">Scan to Verify</span>

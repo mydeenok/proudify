@@ -37,6 +37,7 @@
                 class="card-surface p-lg bento-shadow-sm space-y-md"
                 x-data="{ submitting: false }"
                 x-on:submit="submitting = true"
+                data-no-loading-state
             >
                 @csrf
                 <input type="hidden" id="certificate_template_id" name="template_id" value="{{ $template->id }}">
@@ -161,8 +162,18 @@
                 </div>
 
                 <div class="flex-1 bg-surface-container-low rounded-lg border border-outline-variant flex items-center justify-center p-md overflow-hidden relative shadow-inner">
-                    <div data-preview="canvas" class="bg-surface shadow-[0_8px_32px_rgba(0,0,0,0.1)] aspect-[1.414/1] w-full max-w-[640px] relative overflow-hidden border border-[#eaeaea] transition-transform origin-center">
-                        <iframe id="certificate-preview-frame" title="Certificate preview" class="w-full h-full border-0" srcdoc="{{ $initialPreviewHtml }}"></iframe>
+                    {{-- The outer box is the responsive "window"; the inner canvas renders at the
+                    certificate's real native size (same convention as the canvas builder) and is
+                    scaled down to fit visually, so fixed-px decorative elements in a template's own
+                    design stay proportional to the rest of the layout instead of looking oversized. --}}
+                    <div data-preview="viewport" class="aspect-[1.414/1] w-full max-w-[640px] relative overflow-hidden">
+                        <div
+                            data-preview="canvas"
+                            class="bg-surface shadow-[0_8px_32px_rgba(0,0,0,0.1)] absolute top-0 left-0 border border-[#eaeaea] origin-top-left"
+                            style="width: {{ $template->orientation === 'portrait' ? 707 : 1000 }}px; height: {{ $template->orientation === 'portrait' ? 1000 : 707 }}px;"
+                        >
+                            <iframe id="certificate-preview-frame" title="Certificate preview" class="w-full h-full border-0" srcdoc="{{ $initialPreviewHtml }}"></iframe>
+                        </div>
                     </div>
                 </div>
 

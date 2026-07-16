@@ -75,11 +75,11 @@ class VerificationTest extends TestCase
 
     public function test_a_valid_certificate_can_be_downloaded_publicly(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $certificate = Certificate::factory()->create();
         $pdfPath = "certificates/{$certificate->user_id}/{$certificate->uuid}.pdf";
-        Storage::disk('public')->put($pdfPath, 'fake-pdf-contents');
+        Storage::disk('local')->put($pdfPath, 'fake-pdf-contents');
         $certificate->forceFill(['pdf_path' => $pdfPath])->save();
 
         $response = $this->get(route('certificates.verify.download', [
@@ -93,11 +93,11 @@ class VerificationTest extends TestCase
 
     public function test_a_revoked_certificate_cannot_be_downloaded(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $certificate = Certificate::factory()->revoked()->create();
         $pdfPath = "certificates/{$certificate->user_id}/{$certificate->uuid}.pdf";
-        Storage::disk('public')->put($pdfPath, 'fake-pdf-contents');
+        Storage::disk('local')->put($pdfPath, 'fake-pdf-contents');
         $certificate->forceFill(['pdf_path' => $pdfPath])->save();
 
         $this->get(route('certificates.verify.download', [

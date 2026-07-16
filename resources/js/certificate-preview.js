@@ -27,12 +27,25 @@ export function initCertificateLivePreview() {
     // preview live before upload, so they're intentionally left out here.
     const customTextFields = Array.from(document.querySelectorAll('[data-custom-text-field]'));
 
+    const viewport = root.querySelector('[data-preview="viewport"]');
     const canvas = root.querySelector('[data-preview="canvas"]');
     const zoomIn = document.getElementById('preview-zoom-in');
     const zoomOut = document.getElementById('preview-zoom-out');
     const zoomLabel = document.getElementById('preview-zoom-level');
     const loading = document.getElementById('inline-preview-loading');
 
+    // The canvas renders at the certificate's real native pixel size (see
+    // create.blade.php) so a template's own fixed-px decorations stay
+    // proportional; baseScale is what shrinks that native-size render down
+    // to fit the responsive viewport box, recomputed on resize. The 60-140%
+    // zoom control multiplies on top of it.
+    const nativeWidth = canvas ? parseFloat(canvas.style.width) || 1000 : 1000;
+
+    function computeBaseScale() {
+        return viewport && nativeWidth ? viewport.clientWidth / nativeWidth : 1;
+    }
+
+    let baseScale = computeBaseScale();
     let zoom = 1;
     let debounceTimer = null;
 
@@ -73,7 +86,7 @@ export function initCertificateLivePreview() {
 
     const applyZoom = () => {
         if (canvas) {
-            canvas.style.transform = `scale(${zoom})`;
+            canvas.style.transform = `scale(${baseScale * zoom})`;
         }
         if (zoomLabel) {
             zoomLabel.textContent = `${Math.round(zoom * 100)}%`;
@@ -91,6 +104,11 @@ export function initCertificateLivePreview() {
     });
     zoomOut?.addEventListener('click', () => {
         zoom = Math.max(0.6, zoom - 0.1);
+        applyZoom();
+    });
+
+    window.addEventListener('resize', () => {
+        baseScale = computeBaseScale();
         applyZoom();
     });
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\Bulk\DispatchCertificateBatchJob;
 use App\Models\CertificateBatch;
 use App\Models\Template;
+use App\Models\User;
 use App\Services\BulkUploadIngestService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,40 @@ class BulkUploadController extends Controller
         $templates = Template::active()->orderBy('name')->get();
 
         return view('bulk-upload.select-template', ['templates' => $templates]);
+    }
+
+    /**
+     * A user sees only their own batches; an admin sees every batch (any
+     * org), since admin issuance runs on behalf of other users and would
+     * otherwise have no way back to a batch once its status page is gone.
+     */
+    public function history(Request $request): View
+    {
+        $viewer = $request->user();
+
+        $batches = CertificateBatch::query()
+            ->with(['template', 'user'])
+            ->when(! $viewer->isAdmin(), fn ($query) => $query->where('user_id', $viewer->id))
+            ->when(
+                $viewer->isAdmin() && $request->filled('user_id'),
+                fn ($query) => $query->where('user_id', $request->integer('user_id'))
+            )
+            ->when(
+                $request->filled('status'),
+                fn ($query) => $query->where('status', $request->string('status')->toString())
+            )
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        $orgUsers = $viewer->isAdmin()
+            ? User::where('role', 'user')->orderBy('organization_name')->get()
+            : null;
+
+        return view('bulk-upload.history', [
+            'batches' => $batches,
+            'orgUsers' => $orgUsers,
+        ]);
     }
 
     /**
@@ -65,7 +100,11 @@ class BulkUploadController extends Controller
 
         $headers = $ingestService->parseHeaders(Storage::disk('local')->path($batch->temp_upload_path));
 
-        return view('bulk-upload.map-columns', ['batch' => $batch, 'headers' => $headers]);
+        return view('bulk-upload.map-columns', [
+            'batch' => $batch,
+            'headers' => $headers,
+            'suggestedMapping' => $ingestService->guessColumnMapping($headers),
+        ]);
     }
 
     public function storeMapping(Request $request, CertificateBatch $batch, BulkUploadIngestService $ingestService): RedirectResponse
@@ -148,7 +187,7 @@ class BulkUploadController extends Controller
 
         abort_unless($batch->error_report_path, 404);
 
-        return Storage::disk('public')->download($batch->error_report_path, "batch-{$batch->id}-errors.csv");
+        return Storage::disk('local')->download($batch->error_report_path, "batch-{$batch->id}-errors.csv");
     }
 
     private function authorizeAccess(Request $request, CertificateBatch $batch): void

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Subscriptions\ActivateFreePlanAction;
 use App\Models\Subscription;
 use App\Models\UserSubscription;
+use App\Notifications\PaymentSuccessfulNotification;
 use App\Services\GeoLocationService;
 use App\Services\RazorpayService;
 use Illuminate\Http\JsonResponse;
@@ -111,7 +112,7 @@ class PurchaseController extends Controller
         $limits = $subscription->limitsFor($validated['period']);
         $now = now();
 
-        UserSubscription::create([
+        $userSubscription = UserSubscription::create([
             'user_id' => $request->user()->id,
             'subscription_id' => $subscription->id,
             'certificates_limit' => $limits['certificates'],
@@ -136,6 +137,8 @@ class PurchaseController extends Controller
                 'user_ip' => $request->ip(),
             ],
         ]);
+
+        $request->user()->notify(new PaymentSuccessfulNotification($userSubscription));
 
         return response()->json(['success' => true, 'redirect' => route('dashboard')]);
     }

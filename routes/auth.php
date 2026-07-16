@@ -23,10 +23,12 @@ Route::middleware('guest')->group(function () {
         ->name('otp.pending-approval');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:20,1');
 
     Route::get('adm/login', [AuthenticatedSessionController::class, 'adminCreate'])->name('admin.login');
-    Route::post('adm/login', [AuthenticatedSessionController::class, 'adminStore']);
+    Route::post('adm/login', [AuthenticatedSessionController::class, 'adminStore'])
+        ->middleware('throttle:20,1');
 
     Route::get('sso/{provider}/redirect', [SsoController::class, 'redirectToProvider'])->name('sso.redirect');
     Route::get('sso/callback', [SsoController::class, 'handleProviderCallback'])->name('sso.callback');

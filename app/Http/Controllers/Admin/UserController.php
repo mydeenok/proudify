@@ -37,14 +37,14 @@ class UserController extends Controller
     {
         abort_if($user->isAdmin(), 403, 'Admins cannot be suspended.');
 
-        $user->update(['status' => 'suspended']);
+        $user->forceFill(['status' => 'suspended'])->save();
 
         return back()->with('status', "{$user->name} has been suspended.");
     }
 
     public function reactivate(User $user): RedirectResponse
     {
-        $user->update(['status' => 'active']);
+        $user->forceFill(['status' => 'active'])->save();
 
         return back()->with('status', "{$user->name} has been reactivated.");
     }

@@ -1,12 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
 <title>Certificate Template — Navy &amp; Gold Wave</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,600;0,700;0,800;0,900;1,600&family=Great+Vibes&display=swap" rel="stylesheet">
 <style>
   :root {
     --navy-dark: #0d2647;
@@ -19,28 +15,35 @@
     --paper: #fdfaf5;
   }
 
-  * { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @page { size: A4 landscape; margin: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #e9ecf1;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 
   body {
-    margin: 0;
-    min-height: 100vh;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #e9ecf1;
-    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
-    padding: 32px 16px;
+    align-items: stretch;
+    justify-content: stretch;
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
   }
 
   .certificate {
     position: relative;
     width: 100%;
-    max-width: 1000px;
-    aspect-ratio: 1000 / 707;
-    background: var(--paper);
-    border: 1px solid #111;
+    height: 100%;
+    aspect-ratio: 1.414 / 1;
     overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+    background: var(--paper);
+    color: var(--ink);
   }
 
   .certificate svg.bg {
@@ -49,236 +52,303 @@
     width: 100%;
     height: 100%;
     display: block;
+    pointer-events: none;
   }
 
   /* ---- Header ---- */
-  .logo-box {
+  .org-row {
     position: absolute;
-    top: 6.5%;
-    left: 5.5%;
-    width: 17%;
-    aspect-ratio: 3.4 / 1;
-    background: #ffffff;
+    top: 46px;
+    left: 55px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-weight: 700;
-    font-size: clamp(10px, 1.3vw, 15px);
-    letter-spacing: 0.03em;
-    color: var(--ink);
-    line-height: 1.25;
-    border-radius: 4px;
-    box-shadow: 0 2px 6px rgba(13, 38, 71, 0.25);
+    gap: 12px;
+    width: 320px;
+    height: 44px;
   }
 
-  .photo-box {
-    position: absolute;
-    bottom: 9%;
-    left: 5.5%;
-    width: 11%;
-    aspect-ratio: 1 / 1;
-    background: #dcdcdc;
+  .org-row img {
+    height: 40px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .org-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    line-height: 1.2;
+    max-width: 180px;
+    white-space: normal;
+    word-break: break-word;
   }
 
   .title-block {
     position: absolute;
-    top: 5%;
-    right: 5.5%;
+    top: 40px;
+    right: 55px;
+    width: 420px;
     text-align: right;
   }
 
-  .title-block .title {
-    margin: 0;
-    font-family: 'Poppins', sans-serif;
-    font-weight: 900;
-    font-size: clamp(28px, 5.4vw, 58px);
+  .cert-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.15;
     color: var(--ink);
-    letter-spacing: -0.01em;
-    line-height: 1;
-  }
-
-  .title-block .subtitle {
-    margin: 0.35em 0 0;
-    font-weight: 800;
-    font-size: clamp(11px, 1.8vw, 20px);
-    letter-spacing: 0.32em;
-    color: var(--ink);
+    max-width: 420px;
+    white-space: normal;
+    word-break: break-word;
   }
 
   /* ---- Body ---- */
-  .presented-to {
+  .presented-label {
     position: absolute;
-    top: 30%;
-    left: 5.5%;
-    right: 5.5%;
+    top: 210px;
+    left: 55px;
+    right: 55px;
     text-align: center;
-    font-family: 'Poppins', sans-serif;
-    font-weight: 500;
-    font-size: clamp(12px, 1.9vw, 20px);
-    letter-spacing: 0.35em;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
     color: var(--ink);
-  }
-
-  .recipient-line {
-    position: absolute;
-    top: 45%;
-    left: 5.5%;
-    width: 55%;
-    border-bottom: 2px solid var(--navy);
-    padding-bottom: 4px;
-    min-height: clamp(18px, 2.4vw, 30px);
   }
 
   .recipient-name {
-    font-family: 'Great Vibes', 'Brush Script MT', cursive;
-    font-size: clamp(20px, 3.6vw, 38px);
+    position: absolute;
+    top: 300px;
+    left: 55px;
+    width: 520px;
+    font-family: 'Brush Script MT', 'Segoe Script', cursive;
+    font-size: 40px;
+    font-weight: 400;
+    line-height: 1.15;
     color: var(--navy);
+    white-space: normal;
+    word-break: break-word;
+    border-bottom: 2px solid var(--navy);
+    padding-bottom: 6px;
   }
 
-  .body-text {
+  .cert-description {
     position: absolute;
-    top: 55%;
-    left: 5.5%;
-    width: 58%;
-    font-family: 'Poppins', sans-serif;
+    top: 390px;
+    left: 55px;
+    width: 520px;
+    max-height: 62px;
+    font-size: 13px;
     font-weight: 400;
-    font-size: clamp(9px, 1.35vw, 14.5px);
     line-height: 1.45;
     color: var(--muted);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 
-  .sign-row {
+  /* ---- Footer row: fixed height ---- */
+  .footer {
     position: absolute;
-    top: 80%;
-    left: 19%;
-    width: 46%;
+    bottom: 72px;
+    left: 55px;
+    width: 560px;
+    height: 100px;
     display: flex;
+    align-items: center;
+    gap: 32px;
   }
 
-  .sign-field {
-    flex: 1;
+  .footer-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    height: 100px;
+    flex-shrink: 0;
   }
 
-  .sign-field .rule {
-    border-bottom: 1.5px solid var(--ink);
-    height: 1.1em;
-  }
-
-  .sign-field .label {
-    margin-top: 6px;
-    font-family: 'Poppins', sans-serif;
+  .footer-label {
+    font-size: 10px;
     font-weight: 700;
-    font-size: clamp(9px, 1.15vw, 13px);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     color: var(--ink);
+    line-height: 1;
+    margin-bottom: 6px;
+    white-space: nowrap;
   }
 
-  /* ---- Footer note ---- */
-  .footer-note {
+  .sig-block {
+    width: 168px;
+  }
+
+  .sig-line {
+    width: 140px;
+    height: 1px;
+    background: var(--ink);
+    margin-bottom: 4px;
+  }
+
+  .sig-block img {
+    width: 140px;
+    height: 50px;
+    object-fit: contain;
+    object-position: left center;
+    display: block;
+  }
+
+  .date-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---- QR: bottom-right navy corner, clear of medal ---- */
+  .qr-panel {
     position: absolute;
-    bottom: 2.5%;
-    left: 5.5%;
-    font-size: clamp(8px, 1vw, 10px);
-    color: #8a8a8a;
-    letter-spacing: 0.04em;
+    bottom: 36px;
+    right: 44px;
+    width: 108px;
+    height: 118px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    z-index: 2;
   }
 
-  @media (max-width: 640px) {
-    .recipient-line, .body-text { width: 70%; }
-    .sign-row { left: 5.5%; width: 70%; }
-    .photo-box { display: none; }
-    .body-text {
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 3;
-      overflow: hidden;
-    }
+  .qr-box {
+    width: 82px;
+    height: 82px;
+    background: #ffffff;
+    border: 2px solid var(--gold);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    box-shadow: 0 3px 10px rgba(13, 38, 71, 0.28);
+    flex-shrink: 0;
+  }
+
+  .qr-box img {
+    width: 68px;
+    height: 68px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .qr-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #ffffff;
+    margin-top: 8px;
+    text-align: center;
+    white-space: nowrap;
+    width: 108px;
+    line-height: 1;
+  }
+
+  /* ---- Credential ID: absolute, never inline ---- */
+  .credential-id {
+    position: absolute;
+    bottom: 22px;
+    left: 55px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: #8a8a8a;
+    white-space: nowrap;
   }
 </style>
 </head>
 <body>
 
-  <div class="certificate">
-    <!-- Decorative background: waves + medal -->
-    <svg class="bg" viewBox="0 0 1000 707" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="goldStripe" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="var(--gold-light)"/>
-          <stop offset="50%" stop-color="var(--gold)"/>
-          <stop offset="100%" stop-color="var(--gold-dark)"/>
-        </linearGradient>
-        <linearGradient id="navyGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="var(--navy-dark)"/>
-          <stop offset="100%" stop-color="var(--navy)"/>
-        </linearGradient>
-        <radialGradient id="medalGrad" cx="35%" cy="30%" r="75%">
-          <stop offset="0%" stop-color="var(--gold-light)"/>
-          <stop offset="55%" stop-color="var(--gold)"/>
-          <stop offset="100%" stop-color="var(--gold-dark)"/>
-        </radialGradient>
-        <linearGradient id="ribbonGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="var(--gold)"/>
-          <stop offset="100%" stop-color="var(--gold-dark)"/>
-        </linearGradient>
-      </defs>
+<div class="certificate">
+  <svg class="bg" viewBox="0 0 1000 707" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="goldStripe" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#f9dd8b"/>
+        <stop offset="50%" stop-color="#d8a83d"/>
+        <stop offset="100%" stop-color="#b9861f"/>
+      </linearGradient>
+      <linearGradient id="navyGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#0d2647"/>
+        <stop offset="100%" stop-color="#14315c"/>
+      </linearGradient>
+      <radialGradient id="medalGrad" cx="35%" cy="30%" r="75%">
+        <stop offset="0%" stop-color="#f9dd8b"/>
+        <stop offset="55%" stop-color="#d8a83d"/>
+        <stop offset="100%" stop-color="#b9861f"/>
+      </radialGradient>
+      <linearGradient id="ribbonGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#d8a83d"/>
+        <stop offset="100%" stop-color="#b9861f"/>
+      </linearGradient>
+    </defs>
 
-      <!-- top-left navy wave (kept clear of the title on the right) -->
-      <path d="M0,0 L0,205 C 190,275 300,95 430,120 C 520,138 560,60 560,0 Z"
-            fill="url(#navyGrad)"/>
-      <!-- gold stripe following the wave edge -->
-      <path d="M0,205 C 190,275 300,95 430,120 C 520,138 560,60 560,0"
-            fill="none" stroke="url(#goldStripe)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M0,0 L0,205 C 190,275 300,95 430,120 C 520,138 560,60 560,0 Z" fill="url(#navyGrad)"/>
+    <path d="M0,205 C 190,275 300,95 430,120 C 520,138 560,60 560,0" fill="none" stroke="url(#goldStripe)" stroke-width="12" stroke-linecap="round"/>
 
-      <!-- bottom-right navy wave (mirrored, kept clear of signature/date on the left) -->
-      <path d="M1000,707 L1000,500 C 850,440 760,650 620,610 C 540,588 500,650 500,707 Z"
-            fill="url(#navyGrad)"/>
-      <path d="M1000,500 C 850,440 760,650 620,610 C 540,588 500,650 500,707"
-            fill="none" stroke="url(#goldStripe)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M1000,707 L1000,500 C 850,440 760,650 620,610 C 540,588 500,650 500,707 Z" fill="url(#navyGrad)"/>
+    <path d="M1000,500 C 850,440 760,650 620,610 C 540,588 500,650 500,707" fill="none" stroke="url(#goldStripe)" stroke-width="12" stroke-linecap="round"/>
 
-      <!-- gold sunburst medal, bottom right -->
-      <g transform="translate(905,600)">
-        <path fill="url(#ribbonGrad)" d="M-38,55 L-14,150 L-2,120 L14,150 L38,55 Z"/>
-        <g id="starburst">
-          <path fill="url(#medalGrad)" stroke="#fff" stroke-width="2" d="
-            M0,-72 L11,-40 L44,-52 L34,-19 L68,-13 L46,14 L72,36 L38,42 L46,76 L14,60 L0,92
-            L-14,60 L-46,76 L-38,42 L-72,36 L-46,14 L-68,-13 L-34,-19 L-44,-52 L-11,-40 Z"/>
-        </g>
-      </g>
-    </svg>
+    <!-- medal moved mid-right so QR sits cleanly in bottom-right navy corner -->
+    <g transform="translate(910, 310) scale(0.82)">
+      <path fill="url(#ribbonGrad)" d="M-38,55 L-14,150 L-2,120 L14,150 L38,55 Z"/>
+      <path fill="url(#medalGrad)" stroke="#fff" stroke-width="2" d="M0,-72 L11,-40 L44,-52 L34,-19 L68,-13 L46,14 L72,36 L38,42 L46,76 L14,60 L0,92 L-14,60 L-46,76 L-38,42 L-72,36 L-46,14 L-68,-13 L-34,-19 L-44,-52 L-11,-40 Z"/>
+    </g>
+  </svg>
 
-    <div class="logo-box">COMPANY<br/>LOGO</div>
-
-    <div class="title-block">
-      <p class="title">Certificate</p>
-      <p class="subtitle">OF APPRECIATION</p>
-    </div>
-
-    <div class="presented-to">PRESENTED TO</div>
-
-    <div class="recipient-line">
-      <span class="recipient-name" contenteditable="true" data-placeholder="Recipient Name">Jordan Alexis Carter</span>
-    </div>
-
-    <p class="body-text" contenteditable="true">
-      Lorem ipsum is simply dummy text of the printing and typesetting industry. Lorem ipsum
-      has been the industry's standard dummy text ever since the 1500s, when an unknown
-      printer took a galley of type and scrambled it to make a type specimen book.
-    </p>
-
-    <div class="sign-row">
-      <div class="sign-field">
-        <div class="rule" contenteditable="true"></div>
-        <div class="label">SIGNATURE</div>
-      </div>
-      <div class="sign-field" style="margin-left:8%;">
-        <div class="rule" contenteditable="true"></div>
-        <div class="label">DATE</div>
-      </div>
-    </div>
-
-    <div class="footer-note">Powered by Proudify · Certifications Simplified</div>
+  <div class="org-row">
+    <img src="{company_logo}" alt="Logo">
+    <span class="org-name">{organization_name}</span>
   </div>
+
+  <div class="title-block">
+    <h1 class="cert-title">{title}</h1>
+  </div>
+
+  <p class="presented-label">Presented To</p>
+
+  <h2 class="recipient-name">{recipient_name}</h2>
+
+  <p class="cert-description">{description}</p>
+
+  <div class="footer">
+    <div class="footer-block sig-block">
+      <span class="footer-label">Authorized Signature</span>
+      <div class="sig-line"></div>
+      <img src="{signature}" alt="Signature">
+    </div>
+    <div class="footer-block">
+      <span class="footer-label">Date Issued</span>
+      <span class="date-value">{date_of_issue}</span>
+    </div>
+  </div>
+
+  <div class="qr-panel">
+    <div class="qr-box">
+      <img src="{qrcode}" alt="QR Code">
+    </div>
+    <span class="qr-label">Scan to Verify</span>
+  </div>
+
+  <p class="credential-id">Credential ID: {verification_code}</p>
+</div>
 
 </body>
 </html>

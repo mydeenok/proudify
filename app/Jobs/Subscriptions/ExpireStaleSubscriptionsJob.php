@@ -3,6 +3,7 @@
 namespace App\Jobs\Subscriptions;
 
 use App\Models\UserSubscription;
+use App\Notifications\SubscriptionExpiredNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -19,6 +20,10 @@ class ExpireStaleSubscriptionsJob implements ShouldQueue
             ->where('is_active', true)
             ->where('auto_renew', false)
             ->where('end_date', '<', now())
-            ->update(['is_active' => false]);
+            ->with('user', 'subscription')
+            ->each(function (UserSubscription $userSubscription) {
+                $userSubscription->update(['is_active' => false]);
+                $userSubscription->user->notify(new SubscriptionExpiredNotification($userSubscription));
+            });
     }
 }

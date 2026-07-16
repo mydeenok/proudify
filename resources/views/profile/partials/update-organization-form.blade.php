@@ -14,9 +14,9 @@
 
             @if (! empty($user->org_logos))
                 <div class="flex flex-wrap gap-md mt-sm mb-sm">
-                    @foreach ($user->org_logos as $logoPath)
+                    @foreach ($user->org_logos as $logoIndex => $logoPath)
                         <label class="relative block w-20 h-20 rounded-lg border border-outline-variant overflow-hidden cursor-pointer group">
-                            <img src="{{ Storage::url($logoPath) }}" alt="Organization logo" class="w-full h-full object-contain bg-surface-container-highest">
+                            <img src="{{ route('profile.organization.logo', ['index' => $logoIndex]) }}" alt="Organization logo" class="w-full h-full object-contain bg-surface-container-highest">
                             <input type="checkbox" name="remove_logos[]" value="{{ $logoPath }}" class="absolute top-1 right-1">
                             <span class="absolute inset-0 bg-error/60 text-on-error text-[10px] font-semibold flex items-center justify-center opacity-0 group-has-[:checked]:opacity-100 transition-opacity">
                                 Remove
@@ -35,7 +35,7 @@
             <x-input-label value="Signature" />
 
             @if ($user->signature_path)
-                <img src="{{ Storage::url($user->signature_path) }}" alt="Signature" class="h-16 mt-sm mb-sm bg-surface-container-highest rounded p-2">
+                <img src="{{ route('profile.organization.signature') }}" alt="Signature" class="h-16 mt-sm mb-sm bg-surface-container-highest rounded p-2">
             @endif
 
             <input type="file" name="signature" accept="image/*" class="block w-full text-body-sm font-body-sm text-on-surface-variant">

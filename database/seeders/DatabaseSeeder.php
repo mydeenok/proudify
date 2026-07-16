@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Subscription;
-use App\Models\Template;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -14,7 +13,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $admin = User::factory()->admin()->create([
+        User::factory()->admin()->create([
             'first_name' => 'Proudify',
             'last_name' => 'Admin',
             'organization_name' => 'Proudify',
@@ -22,27 +21,13 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
         ]);
 
-        User::factory()->create([
-            'first_name' => 'Demo',
-            'last_name' => 'User',
-            'organization_name' => 'Acme University',
-            'email' => 'demo@proudify.test',
-            'password' => bcrypt('password'),
-        ]);
-
-        Template::factory()->create([
-            'name' => 'Certificate of Achievement',
-            'category' => 'Achievement',
-            'created_by' => $admin->id,
-        ]);
-
-        Template::factory()->create([
-            'name' => 'Certificate of Completion',
-            'category' => 'Completion',
-            'created_by' => $admin->id,
-        ]);
-
-        $this->call(CertificateTemplateSeeder::class);
+        // User::factory()->create([
+        //     'first_name' => 'Demo',
+        //     'last_name' => 'User',
+        //     'organization_name' => 'Acme University',
+        //     'email' => 'demo@proudify.test',
+        //     'password' => bcrypt('password'),
+        // ]);
 
         Subscription::factory()->free()->create([
             'name' => 'Free',
@@ -50,18 +35,18 @@ class DatabaseSeeder extends Seeder
             'sort_order' => 0,
         ]);
 
-        Subscription::factory()->create([
-            'name' => 'Professional',
-            'description' => 'For growing organizations issuing certificates regularly.',
-            'certificates_per_month' => 500,
-            'certificates_per_year' => 6000,
-            'users_per_month' => 500,
-            'users_per_year' => 6000,
-            'cost_month_inr' => 1999,
-            'cost_year_inr' => 19999,
-            'cost_month_usd' => 29,
-            'cost_year_usd' => 299,
-            'sort_order' => 1,
-        ]);
+        // Subscription::factory()->create([
+        //     'name' => 'Professional',
+        //     'description' => 'For growing organizations issuing certificates regularly.',
+        //     'certificates_per_month' => 500,
+        //     'certificates_per_year' => 6000,
+        //     'users_per_month' => 500,
+        //     'users_per_year' => 6000,
+        //     'cost_month_inr' => 1999,
+        //     'cost_year_inr' => 19999,
+        //     'cost_month_usd' => 29,
+        //     'cost_year_usd' => 299,
+        //     'sort_order' => 1,
+        // ]);
     }
 }

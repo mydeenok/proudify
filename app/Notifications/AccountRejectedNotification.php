@@ -28,8 +28,6 @@ class AccountRejectedNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Your Proudify registration request')
-            ->greeting("Hi {$notifiable->first_name},")
-            ->line('After review, we are unable to approve your Proudify registration at this time.')
-            ->line('If you believe this is a mistake, please contact our support team.');
+            ->view('emails.account-rejected', ['user' => $notifiable]);
     }
 }

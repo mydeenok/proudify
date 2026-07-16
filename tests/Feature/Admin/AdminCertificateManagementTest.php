@@ -62,13 +62,12 @@ class AdminCertificateManagementTest extends TestCase
 
     public function test_bulk_download_streams_a_zip_of_selected_certificates(): void
     {
-        Storage::fake('public');
         Storage::fake('local');
 
         $admin = User::factory()->admin()->create();
         $certificate = Certificate::factory()->create();
 
-        Storage::disk('public')->put($pdfPath = "certificates/{$certificate->user_id}/{$certificate->uuid}.pdf", 'fake-pdf-contents');
+        Storage::disk('local')->put($pdfPath = "certificates/{$certificate->user_id}/{$certificate->uuid}.pdf", 'fake-pdf-contents');
         $certificate->forceFill(['pdf_path' => $pdfPath])->save();
 
         $response = $this->actingAs($admin)->post(route('admin.certificates.bulk-download'), [

@@ -50,7 +50,7 @@ class AdminUserManagementTest extends TestCase
 
         $this->actingAs($user)->get(route('dashboard'))->assertOk();
 
-        $user->update(['status' => 'suspended']);
+        $user->forceFill(['status' => 'suspended'])->save();
 
         $this->actingAs($user)
             ->get(route('dashboard'))

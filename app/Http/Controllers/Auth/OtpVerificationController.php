@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\OtpDeliveryFailedException;
 use App\Services\OtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class OtpVerificationController extends Controller
@@ -24,7 +26,10 @@ class OtpVerificationController extends Controller
             return redirect()->route('register');
         }
 
-        return view('auth.verify-otp', ['email' => $user->email]);
+        return view('auth.verify-otp', [
+            'email' => $user->email,
+            'debugCode' => app()->environment('local') ? $request->session()->get('otp_debug_code') : null,
+        ]);
     }
 
     /**
@@ -52,7 +57,7 @@ class OtpVerificationController extends Controller
         $user->forceFill(['status' => 'pending_approval'])->save();
         $this->otpService->clear($user);
 
-        $request->session()->forget('otp_user_id');
+        $request->session()->forget(['otp_user_id', 'otp_debug_code']);
 
         return redirect()->route('otp.pending-approval');
     }
@@ -69,7 +74,24 @@ class OtpVerificationController extends Controller
             return redirect()->route('register');
         }
 
-        $this->otpService->issueFor($user);
+        try {
+            $code = $this->otpService->issueFor($user);
+        } catch (OtpDeliveryFailedException $exception) {
+            Log::error('Failed to resend OTP email.', [
+                'user_id' => $user->id,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            if (app()->environment('local')) {
+                $request->session()->put('otp_debug_code', $exception->otpCode);
+            }
+
+            return back()->with('status', 'We could not send the code right now. Please try again in a moment.');
+        }
+
+        if (app()->environment('local')) {
+            $request->session()->put('otp_debug_code', $code);
+        }
 
         return back()->with('status', 'A new code has been sent to your email.');
     }

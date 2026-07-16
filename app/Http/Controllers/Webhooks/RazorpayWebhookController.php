@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserSubscription;
+use App\Notifications\PaymentFailedNotification;
 use App\Services\RazorpayService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -38,7 +39,8 @@ class RazorpayWebhookController extends Controller
         }
 
         match ($event) {
-            'payment.failed' => $subscription->update(['payment_status' => 'failed', 'is_active' => false]),
+            'payment.failed' => tap($subscription)->update(['payment_status' => 'failed', 'is_active' => false])
+                ->user->notify(new PaymentFailedNotification($subscription)),
             'payment.captured', 'order.paid' => $subscription->update(['payment_status' => 'completed']),
             default => null,
         };

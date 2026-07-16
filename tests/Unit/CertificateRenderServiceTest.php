@@ -17,11 +17,11 @@ class CertificateRenderServiceTest extends TestCase
 
     public function test_image_src_placeholders_are_replaced_with_data_uris(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
-        $qrPath = UploadedFile::fake()->image('qr.png')->store('certificates/qr', 'public');
-        $signaturePath = UploadedFile::fake()->image('signature.png')->store('signatures', 'public');
-        $logoPath = UploadedFile::fake()->image('logo.png')->store('organization-logos', 'public');
+        $qrPath = UploadedFile::fake()->image('qr.png')->store('certificates/qr', 'local');
+        $signaturePath = UploadedFile::fake()->image('signature.png')->store('signatures', 'local');
+        $logoPath = UploadedFile::fake()->image('logo.png')->store('organization-logos', 'local');
 
         $template = Template::factory()->create([
             'html_content' => <<<'HTML'
@@ -49,9 +49,9 @@ class CertificateRenderServiceTest extends TestCase
 
     public function test_block_placeholders_render_full_image_tags(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
-        $qrPath = UploadedFile::fake()->image('qr.png')->store('certificates/qr', 'public');
+        $qrPath = UploadedFile::fake()->image('qr.png')->store('certificates/qr', 'local');
 
         $template = Template::factory()->create([
             'html_content' => '<div>{qrcode}</div>',
@@ -70,9 +70,9 @@ class CertificateRenderServiceTest extends TestCase
 
     public function test_image_src_placeholders_support_single_quoted_attributes(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
-        $qrPath = UploadedFile::fake()->image('qr.png')->store('certificates/qr', 'public');
+        $qrPath = UploadedFile::fake()->image('qr.png')->store('certificates/qr', 'local');
 
         $template = Template::factory()->create([
             'html_content' => '<img src=\'{qrcode}\' alt="QR Code" />',

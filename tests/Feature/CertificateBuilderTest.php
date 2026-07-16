@@ -158,8 +158,8 @@ class CertificateBuilderTest extends TestCase
         $this->actingAs($admin)->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => $canvasJson]);
         $template->refresh();
 
-        \Illuminate\Support\Facades\Storage::fake('public');
-        \Illuminate\Support\Facades\Storage::disk('public')->put('logos/course.png', 'fake-image-bytes');
+        \Illuminate\Support\Facades\Storage::fake('local');
+        \Illuminate\Support\Facades\Storage::disk('local')->put('logos/course.png', 'fake-image-bytes');
 
         $certificate = \App\Models\Certificate::factory()->create([
             'template_id' => $template->id,

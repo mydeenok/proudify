@@ -1,4 +1,8 @@
-<x-layouts.contextual-shell title="Review & Issue">
+@php
+$shell = auth()->user()->isAdmin() ? 'layouts.admin-shell' : 'layouts.contextual-shell';
+@endphp
+
+<x-dynamic-component :component="$shell" title="Review & Issue">
     <div class="max-w-3xl mx-auto">
         <div class="mb-xl text-center">
             <h1 class="font-headline-xl text-headline-xl text-on-background mb-xs">Bulk Issue Certificates</h1>
@@ -52,4 +56,4 @@
             </button>
         </form>
     </div>
-</x-layouts.contextual-shell>
+</x-dynamic-component>

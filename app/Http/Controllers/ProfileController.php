@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProfileController extends Controller
 {
@@ -53,7 +54,7 @@ class ProfileController extends Controller
 
         foreach ($request->input('remove_logos', []) as $pathToRemove) {
             if (($index = array_search($pathToRemove, $logos, true)) !== false) {
-                Storage::disk('public')->delete($pathToRemove);
+                Storage::disk('local')->delete($pathToRemove);
                 unset($logos[$index]);
             }
         }
@@ -64,7 +65,7 @@ class ProfileController extends Controller
                 if (count($logos) >= 5) {
                     break;
                 }
-                $logos[] = $file->store('organization-logos', 'public');
+                $logos[] = $file->store('organization-logos', 'local');
             }
         }
 
@@ -72,14 +73,35 @@ class ProfileController extends Controller
 
         if ($request->hasFile('signature')) {
             if ($user->signature_path) {
-                Storage::disk('public')->delete($user->signature_path);
+                Storage::disk('local')->delete($user->signature_path);
             }
-            $user->signature_path = $request->file('signature')->store('signatures', 'public');
+            $user->signature_path = $request->file('signature')->store('signatures', 'local');
         }
 
         $user->save();
 
         return Redirect::route('profile.edit')->with('status', 'organization-updated');
+    }
+
+    /**
+     * Always the current user's own logo by array index - there is no
+     * cross-account lookup here, so no ownership check beyond "is
+     * authenticated" is needed.
+     */
+    public function logo(Request $request, int $index): StreamedResponse
+    {
+        $path = ($request->user()->org_logos ?? [])[$index] ?? null;
+
+        abort_unless($path, 404);
+
+        return Storage::disk('local')->response($path);
+    }
+
+    public function signature(Request $request): StreamedResponse
+    {
+        abort_unless($request->user()->signature_path, 404);
+
+        return Storage::disk('local')->response($request->user()->signature_path);
     }
 
     /**

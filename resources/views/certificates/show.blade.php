@@ -1,21 +1,22 @@
 @php
-use Illuminate\Support\Facades\Storage;
-
 $initialImageUrl = $certificate->image_path
-    ? Storage::url($certificate->image_path).'?v='.$certificate->updated_at->timestamp
+    ? route('certificates.image', $certificate).'?v='.$certificate->updated_at->timestamp
     : null;
 $initialQrUrl = $certificate->qr_code_path
-    ? Storage::url($certificate->qr_code_path).'?v='.$certificate->updated_at->timestamp
+    ? route('certificates.qr', $certificate).'?v='.$certificate->updated_at->timestamp
     : null;
+
+$isAdmin = auth()->user()->isAdmin();
+$shell = $isAdmin ? 'layouts.admin-shell' : 'layouts.user-shell';
 @endphp
 
-<x-layouts.user-shell title="{{ $certificate->title }}">
+<x-dynamic-component :component="$shell" title="{{ $certificate->title }}">
     <x-page-header
         :title="$certificate->title"
         :description="'Issued to ' . $certificate->recipient_name . ' on ' . $certificate->date_of_issue->format('d M Y')"
     >
         <x-slot:actions>
-            <a href="{{ auth()->user()->isAdmin() ? route('admin.certificates.index') : route('certificates.index') }}" class="btn-secondary">
+            <a href="{{ $isAdmin ? route('admin.certificates.index') : route('certificates.index') }}" class="btn-secondary">
                 <span class="material-symbols-outlined text-[18px]">arrow_back</span>
                 Back
             </a>
@@ -167,4 +168,4 @@ $initialQrUrl = $certificate->qr_code_path
             </template>
         </div>
     </div>
-</x-layouts.user-shell>
+</x-dynamic-component>

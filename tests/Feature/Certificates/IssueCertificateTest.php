@@ -288,7 +288,7 @@ class IssueCertificateTest extends TestCase
     {
         Bus::fake();
         $this->fakeAssetGeneration();
-        Storage::fake('public');
+        Storage::fake('local');
         Subscription::factory()->free()->create();
 
         $user = User::factory()->create();
@@ -314,7 +314,7 @@ class IssueCertificateTest extends TestCase
 
         $this->assertSame('Advanced Laravel', $certificate->custom_fields['course_name']);
         $this->assertNotEmpty($certificate->custom_image_fields['course_logo']);
-        Storage::disk('public')->assertExists($certificate->custom_image_fields['course_logo']);
+        Storage::disk('local')->assertExists($certificate->custom_image_fields['course_logo']);
     }
 
     public function test_a_required_custom_text_field_is_validated(): void
@@ -422,7 +422,7 @@ class IssueCertificateTest extends TestCase
     {
         Bus::fake();
         $this->fakeAssetGeneration();
-        Storage::fake('public');
+        Storage::fake('local');
         Subscription::factory()->free()->create();
 
         $user = User::factory()->create();
@@ -451,7 +451,7 @@ class IssueCertificateTest extends TestCase
 
         $this->assertSame(['course_name' => 'Legitimate value'], $certificate->custom_fields);
         $this->assertSame([], $certificate->custom_image_fields);
-        Storage::disk('public')->assertDirectoryEmpty('certificates/custom-fields');
+        Storage::disk('local')->assertDirectoryEmpty('certificates/custom-fields');
     }
 
     public function test_bulk_issued_certificates_are_unaffected_by_the_new_custom_image_fields_column(): void
@@ -524,7 +524,7 @@ class IssueCertificateTest extends TestCase
     {
         Bus::fake();
         $this->fakeAssetGeneration();
-        Storage::fake('public');
+        Storage::fake('local');
         Subscription::factory()->free()->create();
 
         $user = User::factory()->create();

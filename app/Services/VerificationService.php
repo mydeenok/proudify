@@ -42,14 +42,29 @@ class VerificationService
      */
     public function verify(string $uuid, string $code, Request $request): array
     {
+        $result = $this->resolve($uuid, $code);
+
+        $this->log($result['certificate'], $result['status'], $request);
+
+        return $result;
+    }
+
+    /**
+     * Same signature/status check as verify(), without the analytics log
+     * entry - used to gate the certificate image/QR <img> tags embedded on
+     * the verify page, which would otherwise multiply every real page view
+     * into three logged lookups (page + image + qr) instead of one.
+     *
+     * @return array{status: string, certificate: ?Certificate}
+     */
+    public function resolve(string $uuid, string $code): array
+    {
         $certificate = Certificate::with(['template', 'user'])
             ->where('uuid', $uuid)
             ->where('verification_code', $code)
             ->first();
 
         $status = $this->resolveStatus($certificate, $uuid, $code);
-
-        $this->log($certificate, $status, $request);
 
         return ['status' => $status, 'certificate' => $status === 'not_found' ? null : $certificate];
     }

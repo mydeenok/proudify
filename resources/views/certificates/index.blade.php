@@ -76,7 +76,9 @@ $tabClass = fn (string $status) => $currentStatus === $status || ($status === ''
                         <tr class="group">
                             <td>
                                 <div class="w-16 h-12 bg-surface-variant rounded border border-outline-variant overflow-hidden flex items-center justify-center">
-                                    @if ($certificate->template?->thumbnail_path)
+                                    @if ($certificate->image_path && Storage::disk('local')->exists($certificate->image_path))
+                                        <img src="{{ route('certificates.image', $certificate) }}" alt="{{ $certificate->title }}" class="w-full h-full object-cover">
+                                    @elseif ($certificate->template?->thumbnail_path)
                                         <img src="{{ Storage::url($certificate->template->thumbnail_path) }}" alt="{{ $certificate->title }}" class="w-full h-full object-cover">
                                     @else
                                         <span class="material-symbols-outlined text-on-surface-variant text-[20px]">image</span>
@@ -136,7 +138,9 @@ $tabClass = fn (string $status) => $currentStatus === $status || ($status === ''
             @php $status = $certificate->displayStatus(); @endphp
             <div class="card-surface bento-shadow-sm overflow-hidden group flex flex-col">
                 <div class="relative aspect-[4/3] bg-surface-container-low overflow-hidden">
-                    @if ($certificate->template?->thumbnail_path)
+                    @if ($certificate->image_path && Storage::disk('local')->exists($certificate->image_path))
+                        <img src="{{ route('certificates.image', $certificate) }}" alt="{{ $certificate->title }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                    @elseif ($certificate->template?->thumbnail_path)
                         <img src="{{ Storage::url($certificate->template->thumbnail_path) }}" alt="{{ $certificate->title }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                     @else
                         <div class="w-full h-full flex items-center justify-center">

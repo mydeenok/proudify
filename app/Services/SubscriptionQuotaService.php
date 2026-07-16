@@ -7,6 +7,7 @@ use App\Exceptions\SubscriptionQuotaExceededException;
 use App\Models\Certificate;
 use App\Models\User;
 use App\Models\UserSubscription;
+use App\Notifications\QuotaAlmostFullNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -49,12 +50,16 @@ class SubscriptionQuotaService
             ->exists();
     }
 
+    private const QUOTA_WARNING_THRESHOLD_PERCENT = 90;
+
     /**
      * @throws SubscriptionQuotaExceededException
      */
     public function consume(UserSubscription $subscription, bool $isNewRecipient): void
     {
-        DB::transaction(function () use ($subscription, $isNewRecipient) {
+        $crossedWarningThreshold = null;
+
+        DB::transaction(function () use ($subscription, $isNewRecipient, &$crossedWarningThreshold) {
             $locked = UserSubscription::whereKey($subscription->id)->lockForUpdate()->first();
 
             if ($locked->certificates_used >= $locked->certificates_limit) {
@@ -65,11 +70,35 @@ class SubscriptionQuotaService
                 throw SubscriptionQuotaExceededException::users();
             }
 
+            $percentBefore = $this->percentOfQuotaUsed($locked);
+
             $locked->increment('certificates_used');
 
             if ($isNewRecipient) {
                 $locked->increment('users_used');
             }
+
+            // Fire once, right as the threshold is crossed - not on every
+            // certificate issued afterward.
+            if ($percentBefore < self::QUOTA_WARNING_THRESHOLD_PERCENT
+                && $this->percentOfQuotaUsed($locked) >= self::QUOTA_WARNING_THRESHOLD_PERCENT) {
+                $crossedWarningThreshold = $locked;
+            }
         });
+
+        if ($crossedWarningThreshold) {
+            $crossedWarningThreshold->loadMissing('user', 'subscription');
+            $crossedWarningThreshold->user->notify(new QuotaAlmostFullNotification(
+                $crossedWarningThreshold,
+                $this->percentOfQuotaUsed($crossedWarningThreshold)
+            ));
+        }
+    }
+
+    private function percentOfQuotaUsed(UserSubscription $subscription): int
+    {
+        return $subscription->certificates_limit > 0
+            ? (int) floor(($subscription->certificates_used / $subscription->certificates_limit) * 100)
+            : 100;
     }
 }

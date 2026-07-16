@@ -99,7 +99,7 @@ class ProfileTest extends TestCase
 
     public function test_a_user_can_upload_organization_logos_and_a_signature(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         $user = User::factory()->create();
 
         $this->actingAs($user)->post(route('profile.organization.update'), [
@@ -109,15 +109,15 @@ class ProfileTest extends TestCase
 
         $user->refresh();
         $this->assertCount(1, $user->org_logos);
-        Storage::disk('public')->assertExists($user->org_logos[0]);
-        Storage::disk('public')->assertExists($user->signature_path);
+        Storage::disk('local')->assertExists($user->org_logos[0]);
+        Storage::disk('local')->assertExists($user->signature_path);
     }
 
     public function test_a_user_can_remove_an_existing_logo(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         $user = User::factory()->create();
-        $existingLogoPath = UploadedFile::fake()->image('old.png')->store('organization-logos', 'public');
+        $existingLogoPath = UploadedFile::fake()->image('old.png')->store('organization-logos', 'local');
         $user->update(['org_logos' => [$existingLogoPath]]);
 
         $this->actingAs($user)->post(route('profile.organization.update'), [
@@ -125,14 +125,14 @@ class ProfileTest extends TestCase
         ]);
 
         $this->assertEmpty($user->fresh()->org_logos);
-        Storage::disk('public')->assertMissing($existingLogoPath);
+        Storage::disk('local')->assertMissing($existingLogoPath);
     }
 
     public function test_uploading_a_new_signature_replaces_the_old_one(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         $user = User::factory()->create();
-        $oldSignaturePath = UploadedFile::fake()->image('old-sig.png')->store('signatures', 'public');
+        $oldSignaturePath = UploadedFile::fake()->image('old-sig.png')->store('signatures', 'local');
         $user->update(['signature_path' => $oldSignaturePath]);
 
         $this->actingAs($user)->post(route('profile.organization.update'), [
@@ -140,8 +140,8 @@ class ProfileTest extends TestCase
         ]);
 
         $user->refresh();
-        Storage::disk('public')->assertMissing($oldSignaturePath);
-        Storage::disk('public')->assertExists($user->signature_path);
+        Storage::disk('local')->assertMissing($oldSignaturePath);
+        Storage::disk('local')->assertExists($user->signature_path);
         $this->assertNotSame($oldSignaturePath, $user->signature_path);
     }
 }

@@ -2,7 +2,9 @@
 
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsApproved;
+use App\Http\Middleware\RedirectAdminFromTenantRoutes;
 use App\Jobs\Subscriptions\ExpireStaleSubscriptionsJob;
+use App\Jobs\Subscriptions\NotifyExpiringSubscriptionsJob;
 use App\Jobs\Subscriptions\ResetUsageCountersJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
@@ -26,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'approved' => EnsureUserIsApproved::class,
             'admin' => EnsureUserIsAdmin::class,
+            'tenant-only' => RedirectAdminFromTenantRoutes::class,
         ]);
 
         // Razorpay's webhook POST carries its own HMAC signature (verified
@@ -37,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (Schedule $schedule) {
         $schedule->job(new ResetUsageCountersJob)->hourly();
+        $schedule->job(new NotifyExpiringSubscriptionsJob)->daily();
         $schedule->job(new ExpireStaleSubscriptionsJob)->daily();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
