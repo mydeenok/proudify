@@ -2,20 +2,17 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class AccountApprovedNotification extends Notification implements ShouldQueue
+/**
+ * Deliberately not ShouldQueue — an admin is watching this action resolve
+ * ("Approved" toast), so it sends inline rather than depending on a queue
+ * worker being up. The caller wraps this in a try/catch so a mail failure
+ * can't turn a successful approval into a 500.
+ */
+class AccountApprovedNotification extends Notification
 {
-    use Queueable;
-
-    public function __construct()
-    {
-        $this->onQueue(config('certificates.queues.mail'));
-    }
-
     /**
      * @return array<int, string>
      */

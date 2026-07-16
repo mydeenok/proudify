@@ -9,8 +9,10 @@ use App\Services\SsoService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class SsoController extends Controller
 {
@@ -74,7 +76,13 @@ class SsoController extends Controller
             ]);
             $user->forceFill(['role' => 'user', 'status' => 'pending_approval'])->save();
 
-            User::admins()->get()->each(fn (User $admin) => $admin->notify(new AdminNewRegistrationNotification($user)));
+            User::admins()->get()->each(function (User $admin) use ($user) {
+                try {
+                    $admin->notify(new AdminNewRegistrationNotification($user));
+                } catch (Throwable $exception) {
+                    Log::error('Failed to send admin new-registration alert.', ['admin_id' => $admin->id, 'exception' => $exception->getMessage()]);
+                }
+            });
         }
 
         if ($user->isAdmin()) {

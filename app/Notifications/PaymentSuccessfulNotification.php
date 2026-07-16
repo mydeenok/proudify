@@ -3,19 +3,17 @@
 namespace App\Notifications;
 
 use App\Models\UserSubscription;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PaymentSuccessfulNotification extends Notification implements ShouldQueue
+/**
+ * Deliberately not ShouldQueue — the buyer is watching checkout resolve,
+ * so it sends inline. The caller wraps this in a try/catch so a mail
+ * failure can't turn a successful payment into a failed response.
+ */
+class PaymentSuccessfulNotification extends Notification
 {
-    use Queueable;
-
-    public function __construct(public UserSubscription $userSubscription)
-    {
-        $this->onQueue(config('certificates.queues.mail'));
-    }
+    public function __construct(public UserSubscription $userSubscription) {}
 
     /**
      * @return array<int, string>

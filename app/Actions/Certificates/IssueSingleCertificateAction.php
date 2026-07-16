@@ -15,7 +15,9 @@ use App\Services\CertificateRenderService;
 use App\Services\SubscriptionQuotaService;
 use App\Services\VerificationService;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * The single certificate-creation sequence, shared by the single-issue
@@ -94,12 +96,22 @@ class IssueSingleCertificateAction
             return $certificate;
         }
 
-        // Email is deliberately excluded from the synchronous path below -
-        // there's no reason the user should wait on a mail provider API
-        // call to see their own certificate, and mail delivery is more
-        // failure-prone / worth retrying independently of asset generation.
         $this->renderService->generateAssetsSynchronously($certificate);
-        SendCertificateIssuedEmailJob::dispatch($certificate);
+
+        // Sent inline (dispatchSync) rather than queued - a single issuance
+        // is one email, not hundreds like a bulk batch, so there's no
+        // "polling page" concern here. Wrapped in a try/catch so a mail
+        // provider hiccup can't turn an otherwise-successful certificate
+        // into a failed request - the certificate row and its assets are
+        // already committed by this point regardless.
+        try {
+            SendCertificateIssuedEmailJob::dispatchSync($certificate);
+        } catch (Throwable $exception) {
+            Log::error('Failed to send certificate-issued email.', [
+                'certificate_id' => $certificate->id,
+                'exception' => $exception->getMessage(),
+            ]);
+        }
 
         return $certificate;
     }

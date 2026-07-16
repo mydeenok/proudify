@@ -10,9 +10,11 @@ use App\Notifications\AdminBulkUploadRequestedNotification;
 use App\Services\BulkUploadIngestService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class BulkUploadController extends Controller
 {
@@ -154,7 +156,13 @@ class BulkUploadController extends Controller
         DispatchCertificateBatchJob::dispatch($batch);
 
         $batch->loadMissing('user', 'template');
-        User::admins()->get()->each(fn (User $admin) => $admin->notify(new AdminBulkUploadRequestedNotification($batch)));
+        User::admins()->get()->each(function (User $admin) use ($batch) {
+            try {
+                $admin->notify(new AdminBulkUploadRequestedNotification($batch));
+            } catch (Throwable $exception) {
+                Log::error('Failed to send admin bulk-upload-requested alert.', ['admin_id' => $admin->id, 'batch_id' => $batch->id, 'exception' => $exception->getMessage()]);
+            }
+        });
 
         return redirect()->route('bulk-upload.status', $batch);
     }

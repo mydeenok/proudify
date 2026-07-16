@@ -8,7 +8,9 @@ use App\Notifications\AccountApprovedNotification;
 use App\Notifications\AccountRejectedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use Throwable;
 
 class UserController extends Controller
 {
@@ -72,7 +74,11 @@ class UserController extends Controller
             'approved_by' => $request->user()->id,
         ])->save();
 
-        $user->notify(new AccountApprovedNotification);
+        try {
+            $user->notify(new AccountApprovedNotification);
+        } catch (Throwable $exception) {
+            Log::error('Failed to send account-approved email.', ['user_id' => $user->id, 'exception' => $exception->getMessage()]);
+        }
 
         return back()->with('status', "{$user->name} has been approved.");
     }
@@ -86,7 +92,12 @@ class UserController extends Controller
     {
         abort_unless($user->status === 'pending_approval', 404);
 
-        $user->notify(new AccountRejectedNotification);
+        try {
+            $user->notify(new AccountRejectedNotification);
+        } catch (Throwable $exception) {
+            Log::error('Failed to send account-rejected email.', ['user_id' => $user->id, 'exception' => $exception->getMessage()]);
+        }
+
         $user->delete();
 
         return back()->with('status', 'The registration request has been rejected.');

@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Razorpay\Api\Errors\Error as RazorpayError;
+use Throwable;
 
 class PurchaseController extends Controller
 {
@@ -143,8 +144,19 @@ class PurchaseController extends Controller
         $userSubscription->setRelation('user', $request->user());
         $userSubscription->setRelation('subscription', $subscription);
 
-        $request->user()->notify(new PaymentSuccessfulNotification($userSubscription));
-        User::admins()->get()->each(fn (User $admin) => $admin->notify(new AdminNewPurchaseNotification($userSubscription)));
+        try {
+            $request->user()->notify(new PaymentSuccessfulNotification($userSubscription));
+        } catch (Throwable $exception) {
+            Log::error('Failed to send payment-successful email.', ['user_subscription_id' => $userSubscription->id, 'exception' => $exception->getMessage()]);
+        }
+
+        User::admins()->get()->each(function (User $admin) use ($userSubscription) {
+            try {
+                $admin->notify(new AdminNewPurchaseNotification($userSubscription));
+            } catch (Throwable $exception) {
+                Log::error('Failed to send admin new-purchase alert.', ['admin_id' => $admin->id, 'exception' => $exception->getMessage()]);
+            }
+        });
 
         return response()->json(['success' => true, 'redirect' => route('dashboard')]);
     }

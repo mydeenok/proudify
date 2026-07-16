@@ -3,19 +3,18 @@
 namespace App\Notifications;
 
 use App\Models\User;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class AdminNewRegistrationNotification extends Notification implements ShouldQueue
+/**
+ * Deliberately not ShouldQueue — this is a time-sensitive alert, and the
+ * caller already loops over every admin inside its own try/catch so one
+ * mail failure can't take down the registration flow or skip the rest of
+ * the admins.
+ */
+class AdminNewRegistrationNotification extends Notification
 {
-    use Queueable;
-
-    public function __construct(public User $registrant)
-    {
-        $this->onQueue(config('certificates.queues.mail'));
-    }
+    public function __construct(public User $registrant) {}
 
     /**
      * @return array<int, string>

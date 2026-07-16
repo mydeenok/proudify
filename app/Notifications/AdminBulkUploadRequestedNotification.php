@@ -3,19 +3,15 @@
 namespace App\Notifications;
 
 use App\Models\CertificateBatch;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class AdminBulkUploadRequestedNotification extends Notification implements ShouldQueue
+/**
+ * Deliberately not ShouldQueue — see AdminNewRegistrationNotification.
+ */
+class AdminBulkUploadRequestedNotification extends Notification
 {
-    use Queueable;
-
-    public function __construct(public CertificateBatch $batch)
-    {
-        $this->onQueue(config('certificates.queues.mail'));
-    }
+    public function __construct(public CertificateBatch $batch) {}
 
     /**
      * @return array<int, string>

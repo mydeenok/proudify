@@ -3,19 +3,15 @@
 namespace App\Notifications;
 
 use App\Models\UserSubscription;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PaymentFailedNotification extends Notification implements ShouldQueue
+/**
+ * Deliberately not ShouldQueue — see PaymentSuccessfulNotification.
+ */
+class PaymentFailedNotification extends Notification
 {
-    use Queueable;
-
-    public function __construct(public UserSubscription $userSubscription)
-    {
-        $this->onQueue(config('certificates.queues.mail'));
-    }
+    public function __construct(public UserSubscription $userSubscription) {}
 
     /**
      * @return array<int, string>

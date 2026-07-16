@@ -8,6 +8,8 @@ use App\Notifications\PaymentFailedNotification;
 use App\Services\RazorpayService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * New vs. the reference app: without this, a payment that Razorpay later
@@ -39,12 +41,22 @@ class RazorpayWebhookController extends Controller
         }
 
         match ($event) {
-            'payment.failed' => tap($subscription)->update(['payment_status' => 'failed', 'is_active' => false])
-                ->user->notify(new PaymentFailedNotification($subscription)),
+            'payment.failed' => $this->handlePaymentFailed($subscription),
             'payment.captured', 'order.paid' => $subscription->update(['payment_status' => 'completed']),
             default => null,
         };
 
         return response('OK');
+    }
+
+    private function handlePaymentFailed(UserSubscription $subscription): void
+    {
+        $subscription->update(['payment_status' => 'failed', 'is_active' => false]);
+
+        try {
+            $subscription->user->notify(new PaymentFailedNotification($subscription));
+        } catch (Throwable $exception) {
+            Log::error('Failed to send payment-failed email.', ['user_subscription_id' => $subscription->id, 'exception' => $exception->getMessage()]);
+        }
     }
 }

@@ -2,20 +2,14 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class AccountRejectedNotification extends Notification implements ShouldQueue
+/**
+ * Deliberately not ShouldQueue — see AccountApprovedNotification.
+ */
+class AccountRejectedNotification extends Notification
 {
-    use Queueable;
-
-    public function __construct()
-    {
-        $this->onQueue(config('certificates.queues.mail'));
-    }
-
     /**
      * @return array<int, string>
      */
