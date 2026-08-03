@@ -47,7 +47,7 @@
 
             <div class="flex items-center gap-sm">
                 @auth
-                    <x-notification-bell />
+                    <livewire:notification-bell />
 
                     <div class="relative" x-data="{ open: false }">
                         <button type="button" @click="open = !open" @click.outside="open = false" class="flex items-center gap-xs" aria-label="Account menu">
@@ -56,7 +56,7 @@
                             </div>
                         </button>
                         <div x-show="open" x-cloak class="absolute right-0 mt-sm w-48 bg-surface-container-lowest border border-outline-variant rounded-lg shadow-lg py-xs z-50">
-                            <a href="{{ route('profile.edit') }}" class="block px-md py-sm font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low">Account Settings</a>
+                            <a href="{{ route('profile.edit') }}" wire:navigate class="block px-md py-sm font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low">Account Settings</a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="w-full text-left px-md py-sm font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low">Log Out</button>
@@ -64,8 +64,8 @@
                         </div>
                     </div>
                 @else
-                    <a href="{{ route('login') }}" class="hidden md:inline-flex font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors">Login</a>
-                    <a href="{{ route('register') }}" class="btn-primary h-10 px-md text-sm">
+                    <a href="{{ route('login') }}" wire:navigate class="hidden md:inline-flex font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors">Login</a>
+                    <a href="{{ route('register') }}" wire:navigate class="btn-primary h-10 px-md text-sm">
                         Get Started
                     </a>
                 @endauth

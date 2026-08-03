@@ -21,36 +21,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CertificateController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $query = $request->user()
-            ->certificates()
-            ->with('template')
-            ->latest();
-
-        if ($search = $request->string('search')->trim()->toString()) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('recipient_name', 'like', "%{$search}%")
-                    ->orWhere('recipient_email', 'like', "%{$search}%");
-            });
-        }
-
-        if ($status = $request->string('status')->toString()) {
-            match ($status) {
-                'active' => $query->where('status', '!=', 'revoked')
-                    ->where(fn ($q) => $q->whereNull('date_of_expiry')->orWhere('date_of_expiry', '>=', now()->toDateString())),
-                'expired' => $query->where('status', '!=', 'revoked')
-                    ->whereNotNull('date_of_expiry')
-                    ->where('date_of_expiry', '<', now()->toDateString()),
-                'revoked' => $query->where('status', 'revoked'),
-                default => null,
-            };
-        }
-
-        $certificates = $query->paginate(10)->withQueryString();
-
-        return view('certificates.index', ['certificates' => $certificates]);
+        return view('certificates.index');
     }
 
     public function create(Request $request, CertificateRenderService $renderService): View

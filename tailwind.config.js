@@ -1,5 +1,6 @@
 import forms from '@tailwindcss/forms';
 import plugin from 'tailwindcss/plugin';
+import scrollbar from 'tailwind-scrollbar';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -8,6 +9,7 @@ export default {
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
         './resources/js/**/*.js',
+        './resources/css/**/*.css',
     ],
 
     darkMode: 'class',
@@ -111,6 +113,7 @@ export default {
 
     plugins: [
         forms({ strategy: 'class' }),
+        scrollbar({ nocompatible: true }),
         plugin(function ({ addUtilities }) {
             const typeScale = {
                 'headline-xl': ['32px', '40px', '-0.02em', '700'],

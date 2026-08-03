@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Certificate;
-use App\Models\Template;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -14,45 +13,9 @@ use ZipArchive;
 
 class AdminCertificateController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $certificates = Certificate::query()
-            ->with(['user', 'template'])
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = $request->string('search')->value();
-                $query->where(function ($query) use ($search) {
-                    $query->where('title', 'like', "%{$search}%")
-                        ->orWhere('recipient_name', 'like', "%{$search}%")
-                        ->orWhere('recipient_email', 'like', "%{$search}%")
-                        ->orWhere('verification_code', 'like', "%{$search}%")
-                        ->orWhereHas('user', fn ($q) => $q->where('organization_name', 'like', "%{$search}%"));
-                });
-            })
-            ->when($request->filled('status'), function ($query) use ($request) {
-                match ($request->string('status')->toString()) {
-                    'active' => $query->where('status', 'active')
-                        ->where(fn ($q) => $q->whereNull('date_of_expiry')->orWhere('date_of_expiry', '>=', now()->toDateString()))
-                        ->whereNotNull('pdf_path'),
-                    'revoked' => $query->where('status', 'revoked'),
-                    'expired' => $query->where('status', '!=', 'revoked')
-                        ->whereNotNull('date_of_expiry')
-                        ->where('date_of_expiry', '<', now()->toDateString()),
-                    'pending' => $query->where('status', 'active')->whereNull('pdf_path'),
-                    'failed' => $query->where('image_generation_status', 'failed'),
-                    default => null,
-                };
-            })
-            ->when($request->filled('template_id'), fn ($query) => $query->where('template_id', $request->integer('template_id')))
-            ->when($request->string('period')->toString() === '30', fn ($query) => $query->where('created_at', '>=', now()->subDays(30)))
-            ->when($request->string('period')->toString() === '7', fn ($query) => $query->where('created_at', '>=', now()->subDays(7)))
-            ->latest()
-            ->paginate(20)
-            ->withQueryString();
-
-        return view('admin.certificates.index', [
-            'certificates' => $certificates,
-            'templates' => Template::orderBy('name')->get(['id', 'name']),
-        ]);
+        return view('admin.certificates.index');
     }
 
     public function revoke(Request $request, Certificate $certificate): RedirectResponse

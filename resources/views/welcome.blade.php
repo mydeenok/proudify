@@ -143,7 +143,7 @@
                     <h2 class="font-headline-lg text-headline-lg text-on-surface mb-sm">Everything you need to issue credentials</h2>
                     <p class="font-body-md text-body-md text-on-surface-variant max-w-[600px] mx-auto">A powerful suite of tools designed for educational institutions, enterprises, and professional bodies.</p>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter fade-up">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
                     <div class="bg-surface border border-outline-variant rounded-xl p-lg flex flex-col shadow-sm hover:shadow-md transition-shadow">
                         <div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary mb-md">
                             <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">design_services</span>
@@ -176,9 +176,9 @@
             </div>
 
             @if ($featuredTemplates->isNotEmpty())
-                <div class="template-carousel hide-scrollbar fade-up px-margin max-w-[1200px] mx-auto">
+                <div class="flex gap-6 overflow-x-auto snap-x snap-mandatory pb-4 hide-scrollbar transition-all duration-[600ms] ease-out px-margin max-w-[1200px] mx-auto" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
                     @foreach ($featuredTemplates as $template)
-                        <div class="min-w-[300px] md:min-w-[400px] aspect-[4/3] rounded-xl bg-surface border border-outline-variant shadow-sm snap-center relative overflow-hidden group">
+                        <div class="min-w-[300px] md:min-w-[400px] aspect-[4/3] rounded-xl bg-surface border border-outline-variant shadow-sm snap-center shrink-0 relative overflow-hidden group">
                             @if ($template->thumbnail_path)
                                 <img src="{{ Storage::url($template->thumbnail_path) }}" alt="{{ $template->name }}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                             @else
@@ -192,7 +192,7 @@
                     @endforeach
                 </div>
             @else
-                <div class="max-w-[1200px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-md px-margin fade-up">
+                <div class="max-w-[1200px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-md px-margin transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
                     @foreach (['Achievement' => 'workspace_premium', 'Completion' => 'school', 'Corporate' => 'domain', 'Recognition' => 'military_tech'] as $category => $icon)
                         <div class="aspect-[4/3] rounded-xl border border-dashed border-outline-variant flex flex-col items-center justify-center gap-xs text-center bg-surface">
                             <span class="material-symbols-outlined text-on-surface-variant text-[32px]">{{ $icon }}</span>
@@ -214,7 +214,7 @@
                 <div class="text-center mb-xl">
                     <h2 class="font-headline-lg text-headline-lg text-on-surface">How it works</h2>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-xl relative fade-up">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-xl relative transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
                     <div class="hidden md:block absolute top-6 left-1/6 right-1/6 h-0.5 bg-outline-variant z-0"></div>
                     <div class="flex flex-col items-center text-center relative z-10">
                         <div class="w-12 h-12 rounded-full bg-primary text-on-primary font-headline-md text-headline-md flex items-center justify-center mb-md border-4 border-surface shadow-sm">1</div>
@@ -240,7 +240,7 @@
                 <div class="text-center mb-2xl">
                     <h2 class="font-headline-lg text-headline-lg text-on-surface mb-sm">Trusted by teams who issue every week</h2>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter fade-up">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
                     <div class="bg-surface border border-outline-variant rounded-xl p-lg shadow-sm flex flex-col gap-md">
                         <span class="material-symbols-outlined text-primary text-[28px]">format_quote</span>
                         <p class="font-body-md text-body-md text-on-surface flex-grow">We used to spend two days at the end of every cohort generating and emailing PDFs by hand. Now it's one CSV upload before lunch.</p>
@@ -276,7 +276,7 @@
                         <h2 class="font-headline-lg text-headline-lg text-on-surface mb-sm">Simple, transparent pricing</h2>
                         <p class="font-body-md text-body-md text-on-surface-variant max-w-[500px] mx-auto">Start free. Upgrade only when you actually need more volume.</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter fade-up items-stretch">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter transition-all duration-[600ms] ease-out items-stretch" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
                         @foreach ($pricingPlans as $plan)
                             @php $isFree = $plan->isFree(); @endphp
                             <div @class([
@@ -320,40 +320,40 @@
         <section class="py-2xl px-margin bg-surface-container-low border-t border-outline-variant">
             <div class="max-w-3xl mx-auto">
                 <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-xl">Frequently asked questions</h2>
-                <div class="space-y-sm fade-up">
-                    <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden">
-                        <button type="button" data-faq-toggle class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
+                <div class="space-y-sm transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
+                    <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden" x-data="{ open: false }">
+                        <button type="button" @click="open = !open" class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
                             Do I need a credit card to try Proudify?
-                            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200">expand_more</span>
+                            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200" :class="{ 'rotate-180': open }">expand_more</span>
                         </button>
-                        <div class="hidden p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
+                        <div x-show="open" x-cloak class="p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
                             No. The Free plan is available the moment your account is approved, with no payment details required.
                         </div>
                     </div>
-                    <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden">
-                        <button type="button" data-faq-toggle class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
+                    <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden" x-data="{ open: false }">
+                        <button type="button" @click="open = !open" class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
                             How many certificates can I issue in one bulk upload?
-                            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200">expand_more</span>
+                            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200" :class="{ 'rotate-180': open }">expand_more</span>
                         </button>
-                        <div class="hidden p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
+                        <div x-show="open" x-cloak class="p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
                             Up to a few thousand recipients per CSV, processed as a background batch — you'll see live progress and get notified the moment it's done.
                         </div>
                     </div>
-                    <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden">
-                        <button type="button" data-faq-toggle class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
+                    <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden" x-data="{ open: false }">
+                        <button type="button" @click="open = !open" class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
                             How does certificate verification actually work?
-                            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200">expand_more</span>
+                            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200" :class="{ 'rotate-180': open }">expand_more</span>
                         </button>
-                        <div class="hidden p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
+                        <div x-show="open" x-cloak class="p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
                             Every certificate carries a signed verification code and QR code linking to a public page. If a certificate is edited or revoked outside the app, the signature no longer matches and verification fails.
                         </div>
                     </div>
-                    <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden">
-                        <button type="button" data-faq-toggle class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
+                    <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden" x-data="{ open: false }">
+                        <button type="button" @click="open = !open" class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
                             Can I use my own certificate design?
-                            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200">expand_more</span>
+                            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200" :class="{ 'rotate-180': open }">expand_more</span>
                         </button>
-                        <div class="hidden p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
+                        <div x-show="open" x-cloak class="p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
                             Yes — build one from scratch in the visual editor, or start from any template in the library and customize logos, colors, and fields.
                         </div>
                     </div>
@@ -362,7 +362,7 @@
         </section>
 
         <section class="py-2xl px-margin bg-background">
-            <div class="max-w-[800px] mx-auto bg-surface border border-outline-variant rounded-xl p-2xl text-center shadow-lg relative overflow-hidden fade-up">
+            <div class="max-w-[800px] mx-auto bg-surface border border-outline-variant rounded-xl p-2xl text-center shadow-lg relative overflow-hidden transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
                 <div class="relative z-10">
                     <h2 class="font-headline-lg text-headline-lg text-on-surface mb-sm">Ready to elevate your credentials?</h2>
                     <p class="font-body-md text-body-md text-on-surface-variant mb-lg max-w-[400px] mx-auto">Start issuing verifiable certificates today. Simple, transparent pricing tailored for organizations of all sizes.</p>

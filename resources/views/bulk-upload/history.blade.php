@@ -1,11 +1,9 @@
-@php $isAdmin = auth()->user()->isAdmin(); @endphp
-
-@if ($isAdmin)
+@if (auth()->user()->isAdmin())
     <x-layouts.admin-shell title="Bulk Upload History">
-        @include('bulk-upload.partials.history-content', ['isAdmin' => true])
+        <livewire:bulk-upload-history />
     </x-layouts.admin-shell>
 @else
     <x-layouts.user-shell title="Bulk Upload History">
-        @include('bulk-upload.partials.history-content', ['isAdmin' => false])
+        <livewire:bulk-upload-history />
     </x-layouts.user-shell>
 @endif

@@ -1,8 +1,4 @@
 {
-  "_module.esm-DLuZkmyn.js": {
-    "file": "assets/module.esm-DLuZkmyn.js",
-    "name": "module.esm"
-  },
   "node_modules/@fontsource/inter/files/inter-cyrillic-400-normal.woff": {
     "file": "assets/inter-cyrillic-400-normal-HOLc17fK.woff",
     "src": "node_modules/@fontsource/inter/files/inter-cyrillic-400-normal.woff"
@@ -232,7 +228,7 @@
     "src": "node_modules/material-symbols/material-symbols-outlined.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BHWIXkCI.css",
+    "file": "assets/app-bxkhvuJD.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -241,21 +237,15 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-B3Omz4Pj.js",
+    "file": "assets/app-H9xMPbuT.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true,
-    "imports": [
-      "_module.esm-DLuZkmyn.js"
-    ]
+    "isEntry": true
   },
   "resources/js/certificate-builder.js": {
-    "file": "assets/certificate-builder-O8Y4Zfo1.js",
+    "file": "assets/certificate-builder-BY-mYSaD.js",
     "name": "certificate-builder",
     "src": "resources/js/certificate-builder.js",
-    "isEntry": true,
-    "imports": [
-      "_module.esm-DLuZkmyn.js"
-    ]
+    "isEntry": true
   }
 }

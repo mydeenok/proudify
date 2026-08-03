@@ -39,7 +39,7 @@ $shell = $isAdmin ? 'layouts.admin-shell' : 'layouts.user-shell';
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
         @forelse ($templates as $template)
-            <div class="group relative card-surface bento-shadow-sm overflow-hidden hover:bento-shadow transition-shadow duration-300 flex flex-col h-[320px]">
+            <div class="group relative card-surface shadow-card-sm overflow-hidden hover:shadow-card transition-shadow duration-300 flex flex-col h-[320px]">
                 <div class="relative flex-1 bg-surface-container-low overflow-hidden">
                     @if ($template->thumbnail_path)
                         <img src="{{ Storage::url($template->thumbnail_path) }}" alt="{{ $template->name }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">

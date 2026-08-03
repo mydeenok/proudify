@@ -7,7 +7,7 @@
                 description="You're subscribing to the {{ $subscription->name }} plan."
             />
 
-            <div class="card-surface p-lg bento-shadow-sm space-y-md">
+            <div class="card-surface p-lg shadow-card-sm space-y-md">
                 <div class="flex items-center gap-md pb-md border-b border-outline-variant">
                     <div class="w-12 h-12 rounded-lg bg-primary-container/10 text-primary-container flex items-center justify-center">
                         <span class="material-symbols-outlined">stars</span>
@@ -31,7 +31,7 @@
             </div>
         </div>
 
-        <div class="card-surface p-lg bento-shadow h-fit">
+        <div class="card-surface p-lg shadow-card h-fit">
             <h2 class="font-headline-md text-headline-md text-on-surface mb-md">Payment</h2>
 
             <div id="checkout-error" class="hidden bg-error/10 text-error rounded-lg px-md py-sm font-body-sm text-body-sm mb-lg border border-error/20"></div>

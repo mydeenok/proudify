@@ -13,9 +13,7 @@ class SubscriptionPlanController extends Controller
 {
     public function index(): View
     {
-        $plans = Subscription::orderByDesc('is_default_free_plan')->orderBy('sort_order')->get();
-
-        return view('admin.subscriptions.index', ['plans' => $plans]);
+        return view('admin.subscriptions.index');
     }
 
     public function create(): View

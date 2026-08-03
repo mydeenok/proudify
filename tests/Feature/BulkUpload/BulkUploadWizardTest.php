@@ -3,6 +3,7 @@
 namespace Tests\Feature\BulkUpload;
 
 use App\Jobs\Bulk\DispatchCertificateBatchJob;
+use App\Livewire\BulkUploadWizard;
 use App\Models\CertificateBatch;
 use App\Models\Template;
 use App\Models\User;
@@ -11,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class BulkUploadWizardTest extends TestCase
@@ -102,5 +104,81 @@ class BulkUploadWizardTest extends TestCase
         $this->actingAs($intruder)
             ->get(route('bulk-upload.status', $batch))
             ->assertForbidden();
+    }
+
+    public function test_livewire_wizard_runs_end_to_end_without_page_reloads(): void
+    {
+        Notification::fake();
+        Bus::fake();
+
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+        $file = UploadedFile::fake()->createWithContent('recipients.csv', self::CSV);
+
+        Livewire::actingAs($user)
+            ->test(BulkUploadWizard::class, [
+                'mode' => 'tenant',
+                'step' => 'template',
+            ])
+            ->call('selectTemplate', $template->id)
+            ->assertSet('step', 'upload')
+            ->set('file', $file)
+            ->call('upload')
+            ->assertSet('step', 'map')
+            ->set('mapping', self::MAPPING)
+            ->call('saveMapping')
+            ->assertSet('step', 'review')
+            ->call('confirm')
+            ->assertRedirect(route('bulk-upload.status', CertificateBatch::firstOrFail()));
+
+        $batch = CertificateBatch::firstOrFail();
+        $this->assertSame('queued', $batch->status);
+        $this->assertSame(2, $batch->items()->where('status', 'pending')->count());
+        $this->assertSame(1, $batch->items()->where('status', 'skipped')->count());
+        Bus::assertDispatched(DispatchCertificateBatchJob::class);
+        Notification::assertSentTo($admin, AdminBulkUploadRequestedNotification::class);
+    }
+
+    public function test_admin_livewire_wizard_sets_issued_by_and_target_user(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $orgUser = User::factory()->create(['organization_name' => 'Acme Org']);
+        $template = Template::factory()->create();
+        $file = UploadedFile::fake()->createWithContent('recipients.csv', self::CSV);
+
+        Livewire::actingAs($admin)
+            ->test(BulkUploadWizard::class, [
+                'mode' => 'admin',
+                'step' => 'setup',
+            ])
+            ->set('userId', $orgUser->id)
+            ->set('templateId', $template->id)
+            ->set('file', $file)
+            ->call('adminUpload')
+            ->assertSet('step', 'map');
+
+        $batch = CertificateBatch::firstOrFail();
+        $this->assertSame($orgUser->id, $batch->user_id);
+        $this->assertSame($admin->id, $batch->issued_by);
+        $this->assertSame('mapping', $batch->status);
+    }
+
+    public function test_guests_cannot_mount_the_livewire_wizard(): void
+    {
+        Livewire::test(BulkUploadWizard::class)
+            ->assertForbidden();
+    }
+
+    public function test_select_template_page_hosts_the_livewire_wizard(): void
+    {
+        $user = User::factory()->create();
+        $template = Template::factory()->create(['name' => 'Graduation Classic']);
+
+        $this->actingAs($user)
+            ->get(route('bulk-upload.select-template'))
+            ->assertOk()
+            ->assertSeeLivewire(BulkUploadWizard::class)
+            ->assertSee('Graduation Classic');
     }
 }

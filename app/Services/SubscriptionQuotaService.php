@@ -7,7 +7,9 @@ use App\Exceptions\SubscriptionQuotaExceededException;
 use App\Models\Certificate;
 use App\Models\User;
 use App\Models\UserSubscription;
+use App\Notifications\AdminQuotaAlmostFullNotification;
 use App\Notifications\QuotaAlmostFullNotification;
+use App\Support\NotifyAdmins;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -88,10 +90,21 @@ class SubscriptionQuotaService
 
         if ($crossedWarningThreshold) {
             $crossedWarningThreshold->loadMissing('user', 'subscription');
+            $percentUsed = $this->percentOfQuotaUsed($crossedWarningThreshold);
+
             $crossedWarningThreshold->user->notify(new QuotaAlmostFullNotification(
                 $crossedWarningThreshold,
-                $this->percentOfQuotaUsed($crossedWarningThreshold)
+                $percentUsed
             ));
+
+            NotifyAdmins::notify(
+                new AdminQuotaAlmostFullNotification(
+                    $crossedWarningThreshold,
+                    $percentUsed
+                ),
+                'Failed to send admin quota-almost-full alert.',
+                ['user_subscription_id' => $crossedWarningThreshold->id],
+            );
         }
     }
 

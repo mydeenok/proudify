@@ -9,7 +9,7 @@
     <header class="flex justify-between items-center px-margin py-md border-b border-outline-variant bg-surface sticky top-0 z-10 shadow-sm shrink-0">
         <div class="flex items-center gap-md">
             @if ($backUrl)
-                <a href="{{ $backUrl }}" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-variant">
+                <a href="{{ $backUrl }}" wire:navigate class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-variant">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </a>
             @endif

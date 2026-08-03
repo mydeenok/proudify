@@ -48,6 +48,11 @@
                     Analytics
                 </x-admin-nav-link>
             @endif
+            @if (Route::has('admin.contact-requests.index'))
+                <x-admin-nav-link :href="route('admin.contact-requests.index')" :active="request()->routeIs('admin.contact-requests.*')" icon="mail">
+                    Contact Requests
+                </x-admin-nav-link>
+            @endif
         </div>
 
         <div class="mt-auto pt-md">
@@ -85,6 +90,9 @@
                     <x-admin-nav-link :href="route('admin.templates.index')" :active="request()->routeIs('admin.templates.*')" icon="layers">Templates</x-admin-nav-link>
                 @endif
                 <x-admin-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" icon="group">Users</x-admin-nav-link>
+                @if (Route::has('admin.contact-requests.index'))
+                    <x-admin-nav-link :href="route('admin.contact-requests.index')" :active="request()->routeIs('admin.contact-requests.*')" icon="mail">Contact Requests</x-admin-nav-link>
+                @endif
             </nav>
         </div>
 
@@ -101,7 +109,7 @@
 
     {{-- top offset clears the sticky mobile header (72px) below md; desktop has no header bar to clear --}}
     <div class="fixed top-[88px] md:top-md right-md z-40">
-        <x-notification-bell />
+        <livewire:notification-bell />
     </div>
 </body>
 </html>

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\AdminNewRegistrationNotification;
 use App\Services\OtpDeliveryFailedException;
 use App\Services\OtpService;
+use App\Support\NotifyAdmins;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -61,13 +62,10 @@ class OtpVerificationController extends Controller
 
         $request->session()->forget(['otp_user_id', 'otp_debug_code']);
 
-        User::admins()->get()->each(function (User $admin) use ($user) {
-            try {
-                $admin->notify(new AdminNewRegistrationNotification($user));
-            } catch (Throwable $exception) {
-                Log::error('Failed to send admin new-registration alert.', ['admin_id' => $admin->id, 'exception' => $exception->getMessage()]);
-            }
-        });
+        NotifyAdmins::notify(
+            new AdminNewRegistrationNotification($user),
+            'Failed to send admin new-registration alert.',
+        );
 
         return redirect()->route('otp.pending-approval');
     }

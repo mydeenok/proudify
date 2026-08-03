@@ -3,7 +3,9 @@
 namespace App\Jobs\Bulk;
 
 use App\Models\CertificateBatch;
+use App\Notifications\AdminBulkUploadCompletedNotification;
 use App\Notifications\BulkUploadCompletedNotification;
+use App\Support\NotifyAdmins;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -38,6 +40,12 @@ class FinalizeCertificateBatchJob implements ShouldQueue
         }
 
         $batch->user->notify(new BulkUploadCompletedNotification($batch));
+
+        NotifyAdmins::notify(
+            new AdminBulkUploadCompletedNotification($batch),
+            'Failed to send admin bulk-upload-completed alert.',
+            ['batch_id' => $batch->id],
+        );
     }
 
     private function writeErrorReport(CertificateBatch $batch): string

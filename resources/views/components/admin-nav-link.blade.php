@@ -6,7 +6,7 @@ $classes = ($active ?? false)
     : 'flex items-center gap-sm px-sm py-xs text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all text-sm';
 @endphp
 
-<a {{ $attributes->merge(['class' => $classes]) }}>
+<a wire:navigate {{ $attributes->merge(['class' => $classes]) }}>
     <span class="material-symbols-outlined text-lg" @if($active) style="font-variation-settings: 'FILL' 1;" @endif>{{ $icon }}</span>
     {{ $slot }}
 </a>
