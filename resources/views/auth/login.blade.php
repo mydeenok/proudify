@@ -1,6 +1,7 @@
 <x-layouts.guest title="Log in">
     <x-slot:header>
-        <p class="font-body-md text-body-md text-on-surface-variant">Sign in to your administrative dashboard</p>
+        <h1 class="font-headline-lg text-headline-lg text-on-surface">Welcome back</h1>
+        <p class="font-body-md text-body-md text-on-surface-variant">Sign in to your account</p>
     </x-slot:header>
 
     <x-auth-session-status class="mb-lg" :status="session('status')" />

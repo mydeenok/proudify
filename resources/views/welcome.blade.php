@@ -1,28 +1,6 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
 @php use Illuminate\Support\Facades\Storage; @endphp
-<head>
-    <x-head title="Verifiable Credentials" />
-</head>
-<body class="bg-background text-on-background font-body-md antialiased selection:bg-primary selection:text-on-primary min-h-screen flex flex-col">
-    <header class="sticky top-0 z-50 bg-surface/90 backdrop-blur-md border-b border-outline-variant">
-        <div class="flex justify-between items-center w-full px-margin max-w-[1200px] mx-auto h-[72px]">
-            <x-application-logo variant="brand" href="/" />
-            <nav class="hidden md:flex items-center gap-xl">
-                <a href="#features" class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors">Features</a>
-                <a href="#templates" class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors">Templates</a>
-                <a href="#pricing" class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors">Pricing</a>
-            </nav>
-            <div class="flex items-center gap-md">
-                <a href="{{ route('login') }}" class="hidden md:inline-flex font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors">Login</a>
-                <a href="{{ route('register') }}" class="inline-flex items-center justify-center px-md py-sm bg-primary-container text-on-primary font-label-md text-label-md rounded-lg shadow-sm hover:bg-primary transition-colors">
-                    Get Started
-                </a>
-            </div>
-        </div>
-    </header>
+<x-layouts.app title="Verifiable Credentials" :full-width="true" :show-status="false">
 
-    <main class="flex-grow">
         <section class="relative pt-[96px] pb-[96px] px-margin overflow-hidden bg-surface-container-low">
             <div class="absolute inset-0 -z-0 pointer-events-none" style="background-image: radial-gradient(circle, #e5e7eb 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(to bottom, black, transparent 70%); opacity: 0.4;"></div>
             <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-fixed rounded-full blur-[120px] opacity-20 -z-0 pointer-events-none transform translate-x-1/3 -translate-y-1/4"></div>
@@ -373,8 +351,5 @@
                 <div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-surface-container-low to-transparent z-0"></div>
             </div>
         </section>
-    </main>
-
-    <x-site-footer />
-</body>
-</html>
+    
+</x-layouts.app>
