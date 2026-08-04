@@ -1,23 +1,5 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
-<head>
-    <x-head title="Contact" />
-</head>
-<body class="bg-floor min-h-screen flex flex-col font-body-md text-on-background antialiased">
-    <header class="border-b border-outline-variant bg-surface">
-        <div class="max-w-3xl mx-auto px-margin h-16 flex items-center justify-between">
-            <x-application-logo variant="brand" href="/" />
-            <div class="flex items-center gap-md">
-                @auth
-                    <a href="{{ auth()->user()->isAdmin() ? route('admin.dashboard') : route('dashboard') }}" wire:navigate class="font-label-md text-label-md text-on-surface-variant hover:text-primary">Dashboard</a>
-                @else
-                    <a href="{{ route('login') }}" wire:navigate class="font-label-md text-label-md text-on-surface-variant hover:text-primary">Sign in</a>
-                @endauth
-            </div>
-        </div>
-    </header>
-
-    <main class="flex-1 w-full max-w-3xl mx-auto px-margin py-2xl">
+<x-layouts.app title="Contact" :show-status="false">
+    <div class="max-w-3xl mx-auto w-full">
         <div class="mb-xl">
             <h1 class="font-headline-xl text-headline-xl text-on-surface">Contact support</h1>
             <p class="font-body-md text-body-md text-on-surface-variant mt-xs">
@@ -55,7 +37,7 @@
 
             <div class="flex flex-col gap-base">
                 <x-input-label for="subject" value="Subject" />
-                    <x-text-input id="subject" name="subject" type="text" required maxlength="160" :value="$subject ?? old('subject')" placeholder="Billing question, account help…" />
+                <x-text-input id="subject" name="subject" type="text" required maxlength="160" :value="$subject ?? old('subject')" placeholder="Billing question, account help…" />
                 <x-input-error :messages="$errors->get('subject')" />
             </div>
 
@@ -80,8 +62,5 @@
                 </x-primary-button>
             </div>
         </form>
-    </main>
-
-    <x-site-footer />
-</body>
-</html>
+    </div>
+</x-layouts.app>

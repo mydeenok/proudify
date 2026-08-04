@@ -15,13 +15,18 @@
             @if (! empty($user->org_logos))
                 <div class="flex flex-wrap gap-md mt-sm mb-sm">
                     @foreach ($user->org_logos as $logoIndex => $logoPath)
-                        <label class="relative block w-20 h-20 rounded-lg border border-outline-variant overflow-hidden cursor-pointer group">
-                            <img src="{{ route('profile.organization.logo', ['index' => $logoIndex]) }}" alt="Organization logo" class="w-full h-full object-contain bg-surface-container-highest">
-                            <input type="checkbox" name="remove_logos[]" value="{{ $logoPath }}" class="absolute top-1 right-1">
-                            <span class="absolute inset-0 bg-error/60 text-on-error text-[10px] font-semibold flex items-center justify-center opacity-0 group-has-[:checked]:opacity-100 transition-opacity">
+                        <div class="relative w-20 h-20 rounded-lg border border-outline-variant overflow-hidden bg-surface-container-highest">
+                            <img src="{{ route('profile.organization.logo', ['index' => $logoIndex]) }}" alt="Organization logo" class="w-full h-full object-contain">
+                            <button
+                                type="submit"
+                                name="remove_logos[]"
+                                value="{{ $logoPath }}"
+                                class="absolute top-1 right-1 inline-flex items-center justify-center h-6 px-1.5 rounded bg-error text-on-error text-[10px] font-semibold shadow-sm hover:opacity-90"
+                                title="Remove this logo"
+                            >
                                 Remove
-                            </span>
-                        </label>
+                            </button>
+                        </div>
                     @endforeach
                 </div>
             @endif

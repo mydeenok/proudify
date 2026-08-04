@@ -1,0 +1,94 @@
+@props([])
+
+<header {{ $attributes->merge(['class' => 'sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-outline-variant shadow-sm']) }}>
+    <div class="flex justify-between items-center w-full px-xl max-w-[1200px] mx-auto h-[72px]">
+        <x-application-logo
+            variant="brand"
+            :href="auth()->check() ? (auth()->user()->isAdmin() ? route('admin.dashboard') : route('dashboard')) : '/'"
+        />
+
+        <nav class="hidden md:flex gap-lg items-end h-full">
+            @auth
+                @unless (auth()->user()->isAdmin())
+                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                        Dashboard
+                    </x-nav-link>
+                    @if (Route::has('certificates.index'))
+                        <x-nav-link :href="route('certificates.index')" :active="request()->routeIs('certificates.*')">
+                            My Certificates
+                        </x-nav-link>
+                    @endif
+                    @if (Route::has('bulk-upload.history'))
+                        <x-nav-link :href="route('bulk-upload.history')" :active="request()->routeIs('bulk-upload.*')">
+                            Bulk Uploads
+                        </x-nav-link>
+                    @endif
+                    @if (Route::has('templates.index'))
+                        <x-nav-link :href="route('templates.index')" :active="request()->routeIs('templates.*')">
+                            Templates
+                        </x-nav-link>
+                    @endif
+                @else
+                    <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
+                        Admin
+                    </x-nav-link>
+                @endunless
+            @else
+                <a href="{{ url('/#features') }}" class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors pb-sm">Features</a>
+                <a href="{{ url('/#templates') }}" class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors pb-sm">Templates</a>
+            @endauth
+
+            @if (Route::has('pricing'))
+                <x-nav-link :href="route('pricing')" :active="request()->routeIs('pricing')">
+                    Pricing
+                </x-nav-link>
+            @endif
+
+            @auth
+                @unless (auth()->user()->isAdmin())
+                    @if (Route::has('subscriptions.index'))
+                        <x-nav-link :href="route('subscriptions.index')" :active="request()->routeIs('subscriptions.*')">
+                            Subscription
+                        </x-nav-link>
+                    @endif
+                @endunless
+            @endauth
+
+            @if (Route::has('contact'))
+                <x-nav-link :href="route('contact')" :active="request()->routeIs('contact')">
+                    Contact
+                </x-nav-link>
+            @endif
+        </nav>
+
+        <div class="flex items-center gap-sm">
+            @auth
+                <livewire:notification-bell />
+
+                <div class="relative" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" @click.outside="open = false" class="flex items-center gap-xs" aria-label="Account menu">
+                        <div class="w-10 h-10 rounded-full bg-surface-variant border border-outline-variant flex items-center justify-center font-label-md text-label-md text-on-surface-variant">
+                            {{ Str::of(auth()->user()->first_name)->substr(0, 1) }}{{ Str::of(auth()->user()->last_name)->substr(0, 1) }}
+                        </div>
+                    </button>
+                    <div x-show="open" x-cloak class="absolute right-0 mt-sm w-48 bg-surface-container-lowest border border-outline-variant rounded-lg shadow-lg py-xs z-50">
+                        @if (auth()->user()->isAdmin())
+                            <a href="{{ route('admin.dashboard') }}" wire:navigate class="block px-md py-sm font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low">Admin dashboard</a>
+                        @else
+                            <a href="{{ route('profile.edit') }}" wire:navigate class="block px-md py-sm font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low">Account Settings</a>
+                        @endif
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-md py-sm font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low">Log Out</button>
+                        </form>
+                    </div>
+                </div>
+            @else
+                <a href="{{ route('login') }}" wire:navigate class="hidden md:inline-flex font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors">Login</a>
+                <a href="{{ route('register') }}" wire:navigate class="btn-primary h-10 px-md text-sm">
+                    Get Started
+                </a>
+            @endauth
+        </div>
+    </div>
+</header>
