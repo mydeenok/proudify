@@ -86,4 +86,27 @@ class AdminCertificateManagementTest extends TestCase
             ->post(route('admin.certificates.bulk-download'), ['certificate_ids' => []])
             ->assertSessionHasErrors('certificate_ids');
     }
+
+    public function test_bulk_download_redirects_when_selected_certificates_have_no_pdf(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $certificate = Certificate::factory()->create(['pdf_path' => null]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.certificates.bulk-download'), [
+                'certificate_ids' => [$certificate->id],
+            ])
+            ->assertRedirect(route('admin.certificates.index'))
+            ->assertSessionHas('status');
+    }
+
+    public function test_opening_bulk_download_url_directly_redirects_with_message(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.certificates.bulk-download'))
+            ->assertRedirect(route('admin.certificates.index'))
+            ->assertSessionHas('status');
+    }
 }

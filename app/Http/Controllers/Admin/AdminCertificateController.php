@@ -38,6 +38,12 @@ class AdminCertificateController extends Controller
 
     public function bulkDownload(Request $request)
     {
+        if ($request->isMethod('get')) {
+            return redirect()
+                ->route('admin.certificates.index')
+                ->with('status', 'Use Download Selected (ZIP) on the certificates page after selecting certificates. Opening the download URL directly is not supported.');
+        }
+
         $validated = $request->validate([
             'certificate_ids' => ['required', 'array', 'min:1'],
             'certificate_ids.*' => ['integer', 'exists:certificates,id'],
@@ -45,9 +51,15 @@ class AdminCertificateController extends Controller
 
         $certificates = Certificate::whereIn('id', $validated['certificate_ids'])
             ->whereNotNull('pdf_path')
-            ->get();
+            ->get()
+            ->filter(fn (Certificate $certificate) => Storage::disk('local')->exists($certificate->pdf_path))
+            ->values();
 
-        abort_if($certificates->isEmpty(), 404, 'None of the selected certificates have a generated PDF yet.');
+        if ($certificates->isEmpty()) {
+            return redirect()
+                ->route('admin.certificates.index')
+                ->with('status', 'None of the selected certificates have a generated PDF yet. Wait for generation to finish, or retry failed ones.');
+        }
 
         $zipRelativePath = 'tmp/certificates-'.now()->timestamp.'-'.uniqid().'.zip';
         $zipFullPath = Storage::disk('local')->path($zipRelativePath);
@@ -57,10 +69,8 @@ class AdminCertificateController extends Controller
         $zip->open($zipFullPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         foreach ($certificates as $certificate) {
-            if (Storage::disk('local')->exists($certificate->pdf_path)) {
-                $filename = Str::slug($certificate->recipient_name).'-'.$certificate->uuid.'.pdf';
-                $zip->addFile(Storage::disk('local')->path($certificate->pdf_path), $filename);
-            }
+            $filename = Str::slug($certificate->recipient_name).'-'.$certificate->uuid.'.pdf';
+            $zip->addFile(Storage::disk('local')->path($certificate->pdf_path), $filename);
         }
 
         $zip->close();

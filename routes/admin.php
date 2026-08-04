@@ -18,7 +18,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics.index');
 
     Route::get('certificates', [AdminCertificateController::class, 'index'])->name('certificates.index');
-    Route::post('certificates/bulk-download', [AdminCertificateController::class, 'bulkDownload'])->name('certificates.bulk-download');
+    Route::match(['get', 'post'], 'certificates/bulk-download', [AdminCertificateController::class, 'bulkDownload'])
+        ->name('certificates.bulk-download');
     Route::patch('certificates/{certificate}/revoke', [AdminCertificateController::class, 'revoke'])->name('certificates.revoke');
 
     Route::get('users', [UserController::class, 'index'])->name('users.index');
