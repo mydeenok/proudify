@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
                 'organization_name' => 'Proudify',
                 'email' => 'admin@proudify.in',
                 'phone' => '9999999999',
-                'password' => bcrypt('ChangeThisPassword123!'),
+                'password' => bcrypt('Password123!'),
             ]);
             $admin->forceFill(['role' => 'admin', 'status' => 'active'])->save();
         }
