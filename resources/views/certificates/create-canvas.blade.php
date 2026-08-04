@@ -30,7 +30,7 @@
         @csrf
         <input type="hidden" name="template_id" value="{{ $template->id }}">
 
-        <div class="card-surface p-md bento-shadow-sm flex flex-col md:flex-row items-start md:items-center gap-md justify-between">
+        <div class="card-surface p-md shadow-card-sm flex flex-col md:flex-row items-start md:items-center gap-md justify-between">
             <div class="w-full md:w-auto md:flex-1 max-w-sm">
                 <x-input-label for="canvas_recipient_email" value="Recipient Email" />
                 <x-text-input id="canvas_recipient_email" name="recipient_email" type="email" required placeholder="jane@example.com" :value="old('recipient_email')" />

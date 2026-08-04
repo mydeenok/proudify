@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Livewire\Admin\AnalyticsDashboard;
 use App\Models\Certificate;
 use App\Models\CertificateVerification;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\UserSubscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AdminAnalyticsTest extends TestCase
@@ -53,5 +55,31 @@ class AdminAnalyticsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('75%');
+    }
+
+    public function test_period_filter_hides_older_metrics(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $plan = Subscription::factory()->create();
+
+        UserSubscription::factory()->for($plan)->create([
+            'payment_status' => 'completed',
+            'amount_paid' => 500,
+            'currency' => 'INR',
+            'created_at' => now()->subDays(45),
+        ]);
+        UserSubscription::factory()->for($plan)->create([
+            'payment_status' => 'completed',
+            'amount_paid' => 100,
+            'currency' => 'INR',
+            'created_at' => now()->subDays(2),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(AnalyticsDashboard::class)
+            ->set('period', 7)
+            ->assertSee('₹100.00', false)
+            ->assertDontSee('₹500.00', false)
+            ->assertSee('Last 7 Days');
     }
 }

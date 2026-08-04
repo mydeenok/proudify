@@ -4,12 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Actions\Subscriptions\ActivateFreePlanAction;
 use App\Models\Subscription;
-use App\Models\User;
 use App\Models\UserSubscription;
 use App\Notifications\AdminNewPurchaseNotification;
 use App\Notifications\PaymentSuccessfulNotification;
 use App\Services\GeoLocationService;
 use App\Services\RazorpayService;
+use App\Support\NotifyAdmins;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -150,13 +150,11 @@ class PurchaseController extends Controller
             Log::error('Failed to send payment-successful email.', ['user_subscription_id' => $userSubscription->id, 'exception' => $exception->getMessage()]);
         }
 
-        User::admins()->get()->each(function (User $admin) use ($userSubscription) {
-            try {
-                $admin->notify(new AdminNewPurchaseNotification($userSubscription));
-            } catch (Throwable $exception) {
-                Log::error('Failed to send admin new-purchase alert.', ['admin_id' => $admin->id, 'exception' => $exception->getMessage()]);
-            }
-        });
+        NotifyAdmins::notify(
+            new AdminNewPurchaseNotification($userSubscription),
+            'Failed to send admin new-purchase alert.',
+            ['user_subscription_id' => $userSubscription->id],
+        );
 
         return response()->json(['success' => true, 'redirect' => route('dashboard')]);
     }

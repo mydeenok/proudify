@@ -5,8 +5,8 @@ $popularPlanId = $paidPlans->sortBy('sort_order')->first()?->id;
 @endphp
 
 <x-layouts.user-shell title="Pricing">
-    <div class="max-w-5xl mx-auto">
-        <section class="text-center mb-2xl max-w-2xl mx-auto pt-xl fade-up">
+    <div class="max-w-5xl mx-auto" x-data="{ yearly: true }">
+        <section class="text-center mb-2xl max-w-2xl mx-auto pt-xl transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
             <h1 class="font-headline-xl text-headline-xl text-on-surface mb-sm">Transparent pricing for every team</h1>
             <p class="font-body-md text-body-md text-on-surface-variant mb-xl">Choose the plan that fits your certification needs. No hidden fees. Upgrade or cancel anytime.</p>
 
@@ -14,13 +14,13 @@ $popularPlanId = $paidPlans->sortBy('sort_order')->first()?->id;
                 <span class="font-label-md text-label-md text-on-surface">Monthly</span>
                 <button
                     type="button"
-                    id="billing-toggle"
                     role="switch"
-                    aria-checked="true"
-                    data-yearly="true"
-                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 bg-primary-container"
+                    :aria-checked="yearly"
+                    @click="yearly = !yearly"
+                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    :class="yearly ? 'bg-primary-container' : 'bg-surface-variant'"
                 >
-                    <span id="billing-toggle-thumb" class="translate-x-5 pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" :class="yearly ? 'translate-x-5' : 'translate-x-0'"></span>
                 </button>
                 <span class="font-label-md text-label-md text-on-surface-variant flex items-center gap-xs">
                     Yearly
@@ -36,7 +36,7 @@ $popularPlanId = $paidPlans->sortBy('sort_order')->first()?->id;
             </div>
         @endif
 
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-lg lg:gap-gutter mb-2xl items-stretch fade-up">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-lg lg:gap-gutter mb-2xl items-stretch transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
             @foreach ($plans as $plan)
                 @php
                     $isCurrent = $activeSubscription && $activeSubscription->subscription_id === $plan->id;
@@ -72,19 +72,19 @@ $popularPlanId = $paidPlans->sortBy('sort_order')->first()?->id;
                         @if ($isFree)
                             <span class="text-4xl font-black text-on-surface tracking-tighter">Free</span>
                         @else
-                            <div data-price-monthly class="hidden">
+                            <div x-show="!yearly">
                                 <span class="text-4xl font-black text-on-surface tracking-tighter">{{ $currencySymbol }}{{ number_format($monthlyPrice, 0) }}</span>
                                 <span class="font-body-sm text-body-sm text-on-surface-variant">/mo</span>
                             </div>
-                            <div data-price-yearly>
+                            <div x-show="yearly">
                                 <span class="text-4xl font-black text-on-surface tracking-tighter">{{ $currencySymbol }}{{ number_format($yearlyPrice / 12, 0) }}</span>
                                 <span class="font-body-sm text-body-sm text-on-surface-variant">/mo</span>
                             </div>
-                            <p data-price-yearly class="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                                Billed {{ $currencySymbol }}{{ number_format($yearlyPrice, 0) }} <span data-billing-period>yearly</span>
+                            <p x-show="yearly" class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                                Billed {{ $currencySymbol }}{{ number_format($yearlyPrice, 0) }} <span>yearly</span>
                             </p>
-                            <p data-price-monthly class="hidden font-body-sm text-body-sm text-on-surface-variant mt-1">
-                                Billed <span data-billing-period>monthly</span>
+                            <p x-show="!yearly" class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                                Billed <span>monthly</span>
                             </p>
                         @endif
                     </div>
@@ -158,7 +158,7 @@ $popularPlanId = $paidPlans->sortBy('sort_order')->first()?->id;
                     <div class="mb-xl flex items-center h-[52px]">
                         <span class="text-3xl font-black text-on-surface tracking-tighter">Custom</span>
                     </div>
-                    <a href="mailto:sales@proudify.test" class="w-full py-2 px-4 rounded-lg font-label-md text-label-md border border-outline-variant text-on-surface bg-surface hover:bg-surface-variant transition-colors mb-xl text-center">
+                    <a href="{{ route('contact', ['subject' => 'Sales inquiry']) }}" wire:navigate class="w-full py-2 px-4 rounded-lg font-label-md text-label-md border border-outline-variant text-on-surface bg-surface hover:bg-surface-variant transition-colors mb-xl text-center">
                         Contact Sales
                     </a>
                     <div class="flex-grow">
@@ -186,33 +186,33 @@ $popularPlanId = $paidPlans->sortBy('sort_order')->first()?->id;
             @endif
         </section>
 
-        <section class="max-w-3xl mx-auto pt-xl border-t border-outline-variant fade-up">
+        <section class="max-w-3xl mx-auto pt-xl border-t border-outline-variant transition-all duration-[600ms] ease-out" x-data="{ shown: false }" x-intersect.once.threshold.10="shown = true" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'">
             <h3 class="font-headline-lg text-headline-lg text-on-surface text-center mb-xl">Frequently Asked Questions</h3>
             <div class="space-y-sm">
-                <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden">
-                    <button type="button" data-faq-toggle class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
+                <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
                         Can I change my plan later?
-                        <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200">expand_more</span>
+                        <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200" :class="{ 'rotate-180': open }">expand_more</span>
                     </button>
-                    <div class="hidden p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
+                    <div x-show="open" x-cloak class="p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
                         Yes, you can upgrade or downgrade your plan at any time from your account settings. Prorated charges or credits will be applied automatically.
                     </div>
                 </div>
-                <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden">
-                    <button type="button" data-faq-toggle class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
+                <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden" x-data="{ open: true }">
+                    <button type="button" @click="open = !open" class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
                         What happens if I exceed my monthly certificate limit on the Free plan?
-                        <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200 rotate-180">expand_more</span>
+                        <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200" :class="{ 'rotate-180': open }">expand_more</span>
                     </button>
-                    <div class="p-md pt-md font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
+                    <div x-show="open" x-cloak class="p-md pt-md font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
                         If you reach your limit, you won't be able to generate new certificates until the next billing cycle. You will receive a notification before you hit the limit, giving you time to upgrade to a paid plan if needed.
                     </div>
                 </div>
-                <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden">
-                    <button type="button" data-faq-toggle class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
+                <div class="border border-outline-variant rounded-lg bg-surface overflow-hidden" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="w-full text-left p-md font-headline-md text-headline-md text-on-surface flex justify-between items-center hover:bg-surface-container-low transition-colors focus:outline-none">
                         Do you offer discounts for non-profits or educational institutions?
-                        <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200">expand_more</span>
+                        <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200" :class="{ 'rotate-180': open }">expand_more</span>
                     </button>
-                    <div class="hidden p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
+                    <div x-show="open" x-cloak class="p-md pt-0 font-body-md text-body-md text-on-surface-variant border-t border-outline-variant bg-surface-container-lowest">
                         Yes, we offer a 30% discount for registered non-profits and educational institutions. Please contact our sales team with proof of your status to apply the discount to your account.
                     </div>
                 </div>

@@ -3,7 +3,9 @@
 namespace App\Jobs\Subscriptions;
 
 use App\Models\UserSubscription;
+use App\Notifications\AdminSubscriptionExpiredNotification;
 use App\Notifications\SubscriptionExpiredNotification;
+use App\Support\NotifyAdmins;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -24,6 +26,12 @@ class ExpireStaleSubscriptionsJob implements ShouldQueue
             ->each(function (UserSubscription $userSubscription) {
                 $userSubscription->update(['is_active' => false]);
                 $userSubscription->user->notify(new SubscriptionExpiredNotification($userSubscription));
+
+                NotifyAdmins::notify(
+                    new AdminSubscriptionExpiredNotification($userSubscription),
+                    'Failed to send admin subscription-expired alert.',
+                    ['user_subscription_id' => $userSubscription->id],
+                );
             });
     }
 }

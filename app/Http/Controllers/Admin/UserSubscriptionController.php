@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserSubscription;
+use App\Notifications\AdminSubscriptionCancelledNotification;
 use App\Notifications\SubscriptionCancelledNotification;
+use App\Support\NotifyAdmins;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,21 +18,9 @@ use Illuminate\View\View;
  */
 class UserSubscriptionController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $subscriptions = UserSubscription::query()
-            ->with(['user', 'subscription'])
-            ->when($request->string('search')->isNotEmpty(), function ($query) use ($request) {
-                $search = $request->string('search');
-                $query->whereHas('user', fn ($q) => $q
-                    ->where('organization_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%"));
-            })
-            ->latest('start_date')
-            ->paginate(15)
-            ->withQueryString();
-
-        return view('admin.user-subscriptions.index', ['subscriptions' => $subscriptions]);
+        return view('admin.user-subscriptions.index');
     }
 
     public function edit(UserSubscription $userSubscription): View
@@ -67,8 +57,15 @@ class UserSubscriptionController extends Controller
     public function cancel(UserSubscription $userSubscription): RedirectResponse
     {
         $userSubscription->update(['is_active' => false, 'auto_renew' => false]);
+        $userSubscription->loadMissing('user', 'subscription');
 
         $userSubscription->user->notify(new SubscriptionCancelledNotification($userSubscription));
+
+        NotifyAdmins::notify(
+            new AdminSubscriptionCancelledNotification($userSubscription),
+            'Failed to send admin subscription-cancelled alert.',
+            ['user_subscription_id' => $userSubscription->id],
+        );
 
         return back()->with('status', 'Subscription cancelled.');
     }

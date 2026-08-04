@@ -46,7 +46,7 @@
         <p class="font-body-sm text-body-sm text-on-surface-variant" x-show="finished" x-cloak x-text="`${succeededRows} of ${totalRows} certificates issued${failedRows > 0 ? `, ${failedRows} failed` : ''}.`"></p>
     </div>
 
-    <div class="card-surface p-lg bento-shadow">
+    <div class="card-surface p-lg shadow-card">
         <div class="flex justify-between items-center mb-xs">
             <span class="font-label-sm text-label-sm text-on-surface-variant" x-text="`${processedRows} / ${totalRows} rows processed`"></span>
             <span class="font-label-sm text-label-sm text-on-surface font-semibold" x-text="`${progressPercent}%`"></span>

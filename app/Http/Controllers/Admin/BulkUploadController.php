@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\CertificateBatch;
-use App\Models\Template;
-use App\Models\User;
+use App\Services\BulkUploadWizardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,13 +18,13 @@ class BulkUploadController extends Controller
 {
     public function create(): View
     {
-        $users = User::where('role', 'user')->orderBy('organization_name')->get();
-        $templates = Template::active()->orderBy('name')->get();
-
-        return view('admin.bulk-upload.create', compact('users', 'templates'));
+        return view('bulk-upload.wizard', [
+            'mode' => 'admin',
+            'step' => 'setup',
+        ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, BulkUploadWizardService $wizard): RedirectResponse
     {
         $validated = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
@@ -34,16 +32,12 @@ class BulkUploadController extends Controller
             'file' => ['required', 'file', 'mimes:csv,xlsx,xls', 'max:10240'],
         ]);
 
-        $tempPath = $request->file('file')->store('bulk-upload-temp', 'local');
-
-        $batch = CertificateBatch::create([
-            'user_id' => $validated['user_id'],
-            'template_id' => $validated['template_id'],
-            'issued_by' => $request->user()->id,
-            'original_filename' => $request->file('file')->getClientOriginalName(),
-            'temp_upload_path' => $tempPath,
-            'status' => 'mapping',
-        ]);
+        $batch = $wizard->createAdminBatch(
+            $request->user(),
+            (int) $validated['user_id'],
+            (int) $validated['template_id'],
+            $request->file('file'),
+        );
 
         return redirect()->route('bulk-upload.map-columns', $batch);
     }

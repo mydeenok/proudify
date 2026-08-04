@@ -1,9 +1,4 @@
-@php
-    $recentNotifications = auth()->user()->notifications()->latest()->limit(8)->get();
-    $unreadCount = auth()->user()->unreadNotifications()->count();
-@endphp
-
-<div class="relative" x-data="{ open: false }">
+<div class="relative" x-data="{ open: false }" wire:poll.10s>
     <button
         type="button"
         @click="open = !open"
@@ -23,17 +18,16 @@
         <div class="flex items-center justify-between px-md py-sm border-b border-outline-variant">
             <span class="font-label-md text-label-md text-on-surface">Notifications</span>
             @if ($unreadCount > 0)
-                <form method="POST" action="{{ route('notifications.mark-all-read') }}">
-                    @csrf
-                    <button type="submit" class="font-label-sm text-label-sm text-primary hover:underline">Mark all read</button>
-                </form>
+                <button type="button" wire:click="markAllRead" class="font-label-sm text-label-sm text-primary hover:underline">Mark all read</button>
             @endif
         </div>
 
         <div class="max-h-96 overflow-y-auto divide-y divide-outline-variant">
             @forelse ($recentNotifications as $notification)
                 <a
+                    wire:key="notification-{{ $notification->id }}"
                     href="{{ route('notifications.open', $notification->id) }}"
+                    wire:navigate
                     class="block px-md py-sm hover:bg-surface-container-low transition-colors {{ $notification->read_at ? '' : 'bg-primary-container/10' }}"
                 >
                     <div class="flex items-start gap-xs">

@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserSubscription;
+use App\Notifications\AdminPaymentFailedNotification;
 use App\Notifications\PaymentFailedNotification;
 use App\Services\RazorpayService;
+use App\Support\NotifyAdmins;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -52,11 +54,18 @@ class RazorpayWebhookController extends Controller
     private function handlePaymentFailed(UserSubscription $subscription): void
     {
         $subscription->update(['payment_status' => 'failed', 'is_active' => false]);
+        $subscription->loadMissing('user', 'subscription');
 
         try {
             $subscription->user->notify(new PaymentFailedNotification($subscription));
         } catch (Throwable $exception) {
             Log::error('Failed to send payment-failed email.', ['user_subscription_id' => $subscription->id, 'exception' => $exception->getMessage()]);
         }
+
+        NotifyAdmins::notify(
+            new AdminPaymentFailedNotification($subscription),
+            'Failed to send admin payment-failed alert.',
+            ['user_subscription_id' => $subscription->id],
+        );
     }
 }

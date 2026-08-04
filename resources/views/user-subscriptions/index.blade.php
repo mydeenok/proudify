@@ -20,7 +20,7 @@ $strokeOffset = $circumference - ($circumference * min($certPercent, 100) / 100)
 
     <div class="w-full max-w-[800px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-gutter mb-xl">
         @if ($active)
-            <div class="md:col-span-12 card-surface p-lg bento-shadow relative overflow-hidden">
+            <div class="md:col-span-12 card-surface p-lg shadow-card relative overflow-hidden">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-xl relative z-10">
                     <div>
                         <div class="flex items-center gap-sm mb-xs">
@@ -57,7 +57,7 @@ $strokeOffset = $circumference - ($circumference * min($certPercent, 100) / 100)
                 </div>
             </div>
         @else
-            <div class="md:col-span-12 card-surface p-lg bento-shadow">
+            <div class="md:col-span-12 card-surface p-lg shadow-card">
                 <p class="font-body-md text-body-md text-on-surface-variant mb-md">You don't have an active subscription.</p>
                 <a href="{{ route('pricing') }}" class="btn-primary">
                     View Plans
@@ -66,7 +66,7 @@ $strokeOffset = $circumference - ($circumference * min($certPercent, 100) / 100)
             </div>
         @endif
 
-        <div class="md:col-span-12 card-surface p-lg bento-shadow-sm">
+        <div class="md:col-span-12 card-surface p-lg shadow-card-sm">
             <h3 class="font-headline-md text-headline-md text-on-surface mb-md">Billing History</h3>
             <div class="overflow-x-auto w-full">
                 <table class="data-table w-full text-left border-collapse">

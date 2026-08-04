@@ -2,30 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\Bulk\DispatchCertificateBatchJob;
 use App\Models\CertificateBatch;
-use App\Models\Template;
-use App\Models\User;
-use App\Notifications\AdminBulkUploadRequestedNotification;
-use App\Services\BulkUploadIngestService;
+use App\Services\BulkUploadWizardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Throwable;
 
 class BulkUploadController extends Controller
 {
     /**
-     * Step 1: pick a template.
+     * Step 1: pick a template (Livewire wizard mount).
      */
     public function selectTemplate(): View
     {
-        $templates = Template::active()->orderBy('name')->get();
-
-        return view('bulk-upload.select-template', ['templates' => $templates]);
+        return view('bulk-upload.wizard', [
+            'mode' => 'tenant',
+            'step' => 'template',
+        ]);
     }
 
     /**
@@ -33,84 +28,54 @@ class BulkUploadController extends Controller
      * org), since admin issuance runs on behalf of other users and would
      * otherwise have no way back to a batch once its status page is gone.
      */
-    public function history(Request $request): View
+    public function history(): View
     {
-        $viewer = $request->user();
-
-        $batches = CertificateBatch::query()
-            ->with(['template', 'user'])
-            ->when(! $viewer->isAdmin(), fn ($query) => $query->where('user_id', $viewer->id))
-            ->when(
-                $viewer->isAdmin() && $request->filled('user_id'),
-                fn ($query) => $query->where('user_id', $request->integer('user_id'))
-            )
-            ->when(
-                $request->filled('status'),
-                fn ($query) => $query->where('status', $request->string('status')->toString())
-            )
-            ->latest()
-            ->paginate(20)
-            ->withQueryString();
-
-        $orgUsers = $viewer->isAdmin()
-            ? User::where('role', 'user')->orderBy('organization_name')->get()
-            : null;
-
-        return view('bulk-upload.history', [
-            'batches' => $batches,
-            'orgUsers' => $orgUsers,
-        ]);
+        return view('bulk-upload.history');
     }
 
     /**
-     * Step 2: upload the CSV/XLSX.
+     * Step 2: upload the CSV/XLSX (Livewire wizard mount).
      */
     public function create(Request $request): View
     {
-        $template = Template::active()->findOrFail($request->integer('template'));
-
-        return view('bulk-upload.upload', ['template' => $template]);
+        return view('bulk-upload.wizard', [
+            'mode' => 'tenant',
+            'step' => 'upload',
+            'templateId' => $request->integer('template'),
+        ]);
     }
 
-    public function store(Request $request, BulkUploadIngestService $ingestService): RedirectResponse
+    public function store(Request $request, BulkUploadWizardService $wizard): RedirectResponse
     {
         $validated = $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
             'file' => ['required', 'file', 'mimes:csv,xlsx,xls', 'max:10240'],
         ]);
 
-        $template = Template::active()->findOrFail($validated['template_id']);
-
-        $tempPath = $request->file('file')->store('bulk-upload-temp', 'local');
-
-        $batch = CertificateBatch::create([
-            'user_id' => $request->user()->id,
-            'template_id' => $template->id,
-            'original_filename' => $request->file('file')->getClientOriginalName(),
-            'temp_upload_path' => $tempPath,
-            'status' => 'mapping',
-        ]);
+        $batch = $wizard->createTenantBatch(
+            $request->user(),
+            (int) $validated['template_id'],
+            $request->file('file'),
+        );
 
         return redirect()->route('bulk-upload.map-columns', $batch);
     }
 
     /**
-     * Step 3: map spreadsheet columns to certificate fields.
+     * Step 3: map spreadsheet columns (Livewire wizard resume).
      */
-    public function mapColumns(Request $request, CertificateBatch $batch, BulkUploadIngestService $ingestService): View
+    public function mapColumns(Request $request, CertificateBatch $batch): View
     {
         $this->authorizeAccess($request, $batch);
 
-        $headers = $ingestService->parseHeaders(Storage::disk('local')->path($batch->temp_upload_path));
-
-        return view('bulk-upload.map-columns', [
-            'batch' => $batch,
-            'headers' => $headers,
-            'suggestedMapping' => $ingestService->guessColumnMapping($headers),
+        return view('bulk-upload.wizard', [
+            'mode' => $request->user()->isAdmin() ? 'admin' : 'tenant',
+            'step' => 'map',
+            'batchId' => $batch->id,
         ]);
     }
 
-    public function storeMapping(Request $request, CertificateBatch $batch, BulkUploadIngestService $ingestService): RedirectResponse
+    public function storeMapping(Request $request, CertificateBatch $batch, BulkUploadWizardService $wizard): RedirectResponse
     {
         $this->authorizeAccess($request, $batch);
 
@@ -124,10 +89,8 @@ class BulkUploadController extends Controller
             'mapping.date_of_expiry' => ['nullable', 'integer'],
         ]);
 
-        $batch->forceFill(['column_mapping' => $validated['mapping']])->save();
-
         try {
-            $ingestService->ingestRows($batch, $validated['mapping']);
+            $wizard->applyMapping($batch, $validated['mapping']);
         } catch (ValidationException $exception) {
             return back()->withErrors($exception->errors());
         }
@@ -142,27 +105,22 @@ class BulkUploadController extends Controller
     {
         $this->authorizeAccess($request, $batch);
 
-        $pendingCount = $batch->items()->where('status', 'pending')->count();
-        $skippedCount = $batch->items()->where('status', 'skipped')->count();
-        $failedCount = $batch->items()->where('status', 'failed')->count();
-
-        return view('bulk-upload.review', compact('batch', 'pendingCount', 'skippedCount', 'failedCount'));
+        return view('bulk-upload.wizard', [
+            'mode' => $request->user()->isAdmin() ? 'admin' : 'tenant',
+            'step' => 'review',
+            'batchId' => $batch->id,
+        ]);
     }
 
-    public function confirm(Request $request, CertificateBatch $batch): RedirectResponse
+    public function confirm(Request $request, CertificateBatch $batch, BulkUploadWizardService $wizard): RedirectResponse
     {
         $this->authorizeAccess($request, $batch);
 
-        DispatchCertificateBatchJob::dispatch($batch);
-
-        $batch->loadMissing('user', 'template');
-        User::admins()->get()->each(function (User $admin) use ($batch) {
-            try {
-                $admin->notify(new AdminBulkUploadRequestedNotification($batch));
-            } catch (Throwable $exception) {
-                Log::error('Failed to send admin bulk-upload-requested alert.', ['admin_id' => $admin->id, 'batch_id' => $batch->id, 'exception' => $exception->getMessage()]);
-            }
-        });
+        try {
+            $wizard->confirm($batch);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors());
+        }
 
         return redirect()->route('bulk-upload.status', $batch);
     }

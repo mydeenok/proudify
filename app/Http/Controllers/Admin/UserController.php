@@ -14,25 +14,9 @@ use Throwable;
 
 class UserController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $users = User::query()
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = $request->string('search')->value();
-                $query->where(function ($query) use ($search) {
-                    $query->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('organization_name', 'like', "%{$search}%");
-                });
-            })
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
-            ->when($request->filled('role'), fn ($query) => $query->where('role', $request->string('role')))
-            ->latest()
-            ->paginate(20)
-            ->withQueryString();
-
-        return view('admin.users.index', ['users' => $users]);
+        return view('admin.users.index');
     }
 
     public function suspend(Request $request, User $user): RedirectResponse

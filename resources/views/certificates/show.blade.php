@@ -76,7 +76,7 @@ $shell = $isAdmin ? 'layouts.admin-shell' : 'layouts.user-shell';
         x-init="if (! ready && generationStatus !== 'failed') poll()"
     >
         <div class="lg:col-span-8">
-            <div class="glass-panel p-sm rounded-xl overflow-hidden shadow-lg bento-shadow">
+            <div class="bg-white/95 backdrop-blur-[10px] border border-outline-variant p-sm rounded-xl overflow-hidden shadow-lg shadow-card">
                 <template x-if="ready && imageUrl">
                     <img :src="imageUrl" alt="{{ $certificate->title }}" class="w-full h-auto object-contain rounded-lg border border-outline-variant" />
                 </template>
@@ -103,7 +103,7 @@ $shell = $isAdmin ? 'layouts.admin-shell' : 'layouts.user-shell';
         </div>
 
         <div class="lg:col-span-4 flex flex-col gap-lg">
-            <div class="glass-panel p-lg rounded-xl flex flex-col gap-md bento-shadow">
+            <div class="bg-white/95 backdrop-blur-[10px] border border-outline-variant p-lg rounded-xl flex flex-col gap-md shadow-card">
                 <h3 class="font-headline-md text-headline-md text-on-surface">Actions</h3>
 
                 <template x-if="pdfReady">
@@ -124,7 +124,7 @@ $shell = $isAdmin ? 'layouts.admin-shell' : 'layouts.user-shell';
                 </button>
             </div>
 
-            <div class="glass-panel p-lg rounded-xl flex flex-col gap-md bento-shadow">
+            <div class="bg-white/95 backdrop-blur-[10px] border border-outline-variant p-lg rounded-xl flex flex-col gap-md shadow-card">
                 <h2 class="font-headline-md text-headline-md text-on-surface border-b border-outline-variant pb-xs">Details</h2>
                 <div class="grid grid-cols-2 gap-y-md gap-x-sm">
                     <div class="flex flex-col gap-base">
@@ -139,8 +139,9 @@ $shell = $isAdmin ? 'layouts.admin-shell' : 'layouts.user-shell';
                         <span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Credential ID</span>
                         <div class="flex items-center gap-sm">
                             <span class="font-body-md text-body-md text-on-surface font-mono bg-surface-container-low px-2 py-1 rounded border border-outline-variant inline-block" x-text="verificationCode"></span>
-                            <button type="button" :data-copy="verificationCode" class="p-xs rounded-lg border border-outline-variant text-on-surface-variant hover:text-primary hover:border-primary transition-colors" title="Copy ID">
-                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                            <button type="button" x-data="{ copied: false }" @click="navigator.clipboard.writeText(verificationCode).then(() => { copied = true; setTimeout(() => copied = false, 2000) }).catch(() => {})" class="p-xs rounded-lg border border-outline-variant text-on-surface-variant hover:text-primary hover:border-primary transition-colors" title="Copy ID">
+                                <span class="material-symbols-outlined text-[16px]" x-show="!copied">content_copy</span>
+                                <span class="material-symbols-outlined text-[16px]" x-show="copied" x-cloak>check</span>
                             </button>
                         </div>
                     </div>
@@ -156,7 +157,7 @@ $shell = $isAdmin ? 'layouts.admin-shell' : 'layouts.user-shell';
             </div>
 
             <template x-if="qrUrl">
-                <div class="glass-panel p-md rounded-xl flex items-center gap-md bento-shadow">
+                <div class="bg-white/95 backdrop-blur-[10px] border border-outline-variant p-md rounded-xl flex items-center gap-md shadow-card">
                     <div class="w-16 h-16 bg-white border border-outline-variant rounded p-1 shrink-0">
                         <img :src="qrUrl" alt="Verification QR code" class="w-full h-full object-contain" />
                     </div>

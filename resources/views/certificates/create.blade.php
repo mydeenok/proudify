@@ -8,7 +8,7 @@
             <span class="material-symbols-outlined text-[18px]">draw</span>
             Use Visual Canvas
         </a>
-        <button type="button" id="preview-certificate-btn" class="btn-secondary h-10 px-md py-xs text-sm">
+        <button type="button" x-data="previewLaunch" @click="launch()" class="btn-secondary h-10 px-md py-xs text-sm">
             <span class="material-symbols-outlined text-[18px]">visibility</span>
             Preview Certificate
         </button>
@@ -28,14 +28,13 @@
         <input type="hidden" name="date_of_expiry" id="preview_launch_date_of_expiry">
     </form>
 
-    <div class="max-w-[1440px] mx-auto w-full p-margin flex flex-col lg:flex-row gap-margin">
+    <div class="max-w-[1440px] mx-auto w-full p-margin flex flex-col lg:flex-row gap-margin" x-data="certificatePreview(@js((string) $template->id))">
         <div class="w-full lg:w-5/12 flex flex-col gap-xl">
             <form
                 method="POST"
                 action="{{ route('certificates.store') }}"
                 enctype="multipart/form-data"
-                class="card-surface p-lg bento-shadow-sm space-y-md"
-                x-data="{ submitting: false }"
+                class="card-surface p-lg shadow-card-sm space-y-md"
                 x-on:submit="submitting = true"
                 data-no-loading-state
             >
@@ -52,7 +51,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
                     <div>
                         <x-input-label for="recipient_name" value="Recipient Name" />
-                        <x-text-input id="recipient_name" name="recipient_name" type="text" required placeholder="e.g. Jane Doe" :value="old('recipient_name')" />
+                        <x-text-input id="recipient_name" name="recipient_name" type="text" required placeholder="e.g. Jane Doe" :value="old('recipient_name')" x-ref="recipient_name" @input="scheduleRerender()" />
                         <x-input-error :messages="$errors->get('recipient_name')" />
                     </div>
                     <div>
@@ -64,25 +63,25 @@
 
                 <div>
                     <x-input-label for="title" value="Certificate Title" />
-                    <x-text-input id="title" name="title" type="text" required placeholder="e.g. Certificate of Completion" :value="old('title')" />
+                    <x-text-input id="title" name="title" type="text" required placeholder="e.g. Certificate of Completion" :value="old('title')" x-ref="title" @input="scheduleRerender()" />
                     <x-input-error :messages="$errors->get('title')" />
                 </div>
 
                 <div>
                     <x-input-label for="description" value="Description / Subtitle" />
-                    <textarea id="description" name="description" rows="3" maxlength="500" class="form-input h-auto py-sm min-h-[88px]" placeholder="Enter custom text for the certificate body…">{{ old('description') }}</textarea>
+                    <textarea id="description" name="description" rows="3" maxlength="500" class="form-input h-auto py-sm min-h-[88px]" placeholder="Enter custom text for the certificate body…" x-ref="description" @input="scheduleRerender()">{{ old('description') }}</textarea>
                     <x-input-error :messages="$errors->get('description')" />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
                     <div>
                         <x-input-label for="date_of_issue" value="Issue Date" />
-                        <x-text-input id="date_of_issue" name="date_of_issue" type="date" required :value="old('date_of_issue', now()->toDateString())" />
+                        <x-text-input id="date_of_issue" name="date_of_issue" type="date" required :value="old('date_of_issue', now()->toDateString())" x-ref="date_of_issue" @input="scheduleRerender()" />
                         <x-input-error :messages="$errors->get('date_of_issue')" />
                     </div>
                     <div>
                         <x-input-label for="date_of_expiry" value="Expiry Date (optional)" />
-                        <x-text-input id="date_of_expiry" name="date_of_expiry" type="date" :value="old('date_of_expiry')" />
+                        <x-text-input id="date_of_expiry" name="date_of_expiry" type="date" :value="old('date_of_expiry')" x-ref="date_of_expiry" @input="scheduleRerender()" />
                         <x-input-error :messages="$errors->get('date_of_expiry')" />
                     </div>
                 </div>
@@ -117,6 +116,7 @@
                                         data-custom-text-field="{{ $field['key'] }}"
                                         :value="$customFieldOldValue"
                                         :required="$field['required']"
+                                        @input="scheduleRerender()"
                                     />
                                 @endif
                                 <x-input-error :messages="$customFieldErrors" />
@@ -138,7 +138,7 @@
         </div>
 
         <div class="w-full lg:w-7/12 flex flex-col" id="certificate-live-preview">
-            <div class="glass-panel rounded-xl flex-1 p-md flex flex-col relative min-h-[500px]">
+            <div class="bg-white/95 backdrop-blur-[10px] border border-outline-variant rounded-xl flex-1 p-md flex flex-col relative min-h-[500px]">
                 <div class="flex justify-between items-center mb-md px-xs">
                     <h3 class="font-label-md text-label-md text-on-surface flex items-center gap-xs">
                         <span class="material-symbols-outlined text-primary text-[18px]">visibility</span>
@@ -146,17 +146,17 @@
                     </h3>
                     <div class="flex items-center gap-md">
                         <x-loading-messages
-                            id="inline-preview-loading"
+                            x-show="loading"
                             :messages="['Loading fonts…', 'Rendering your design…']"
                         />
                         <div class="flex gap-xs">
-                            <button type="button" id="preview-zoom-in" class="w-8 h-8 rounded bg-surface border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
+                            <button type="button" @click="zoomIn()" class="w-8 h-8 rounded bg-surface border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
                                 <span class="material-symbols-outlined text-[18px]">zoom_in</span>
                             </button>
-                            <button type="button" id="preview-zoom-out" class="w-8 h-8 rounded bg-surface border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
+                            <button type="button" @click="zoomOut()" class="w-8 h-8 rounded bg-surface border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
                                 <span class="material-symbols-outlined text-[18px]">zoom_out</span>
                             </button>
-                            <span id="preview-zoom-level" class="w-10 h-8 flex items-center justify-center font-label-sm text-label-sm text-on-surface-variant">100%</span>
+                            <span class="w-10 h-8 flex items-center justify-center font-label-sm text-label-sm text-on-surface-variant" x-text="Math.round(zoom * 100) + '%'">100%</span>
                         </div>
                     </div>
                 </div>
@@ -166,13 +166,13 @@
                     certificate's real native size (same convention as the canvas builder) and is
                     scaled down to fit visually, so fixed-px decorative elements in a template's own
                     design stay proportional to the rest of the layout instead of looking oversized. --}}
-                    <div data-preview="viewport" class="aspect-[1.414/1] w-full max-w-[640px] relative overflow-hidden">
+                    <div x-ref="viewport" class="aspect-[1.414/1] w-full max-w-[640px] relative overflow-hidden">
                         <div
-                            data-preview="canvas"
+                            x-ref="canvas"
                             class="bg-surface shadow-[0_8px_32px_rgba(0,0,0,0.1)] absolute top-0 left-0 border border-[#eaeaea] origin-top-left"
                             style="width: {{ $template->orientation === 'portrait' ? 707 : 1000 }}px; height: {{ $template->orientation === 'portrait' ? 1000 : 707 }}px;"
                         >
-                            <iframe id="certificate-preview-frame" title="Certificate preview" class="w-full h-full border-0" srcdoc="{{ $initialPreviewHtml }}"></iframe>
+                            <iframe x-ref="frame" title="Certificate preview" class="w-full h-full border-0" srcdoc="{{ $initialPreviewHtml }}"></iframe>
                         </div>
                     </div>
                 </div>

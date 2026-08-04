@@ -4,7 +4,7 @@
 >
     <div class="max-w-[1440px] mx-auto w-full p-margin flex flex-col lg:flex-row gap-margin h-full">
         <div class="w-full lg:w-5/12 flex flex-col gap-md">
-            <form id="preview-form" class="card-surface p-lg bento-shadow-sm space-y-md">
+            <form id="preview-form" class="card-surface p-lg shadow-card-sm space-y-md">
                 <input type="hidden" name="template_id" value="{{ $template->id }}">
 
                 <h2 class="font-headline-md text-headline-md text-on-surface mb-lg">Edit &amp; preview</h2>

@@ -11,15 +11,9 @@ use Illuminate\View\View;
 
 class TemplateController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $templates = Template::query()
-            ->when($request->string('search')->isNotEmpty(), fn ($query) => $query->where('name', 'like', '%'.$request->string('search').'%'))
-            ->latest()
-            ->paginate(12)
-            ->withQueryString();
-
-        return view('admin.templates.index', ['templates' => $templates]);
+        return view('admin.templates.index');
     }
 
     public function create(): View

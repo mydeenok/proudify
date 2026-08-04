@@ -11,7 +11,7 @@ $config = $variants[$variant] ?? $variants['brand'];
 $logoUrl = asset('images/proudify-logo.png');
 @endphp
 
-<a href="{{ $href }}" {{ $attributes->merge(['class' => 'inline-flex items-center gap-sm shrink-0' . ($config['showTagline'] ? ' flex-col items-start gap-xs' : '')]) }}>
+<a href="{{ $href }}" wire:navigate {{ $attributes->merge(['class' => 'inline-flex items-center gap-sm shrink-0' . ($config['showTagline'] ? ' flex-col items-start gap-xs' : '')]) }}>
     <img
         src="{{ $logoUrl }}"
         alt="{{ config('app.name') }}"
