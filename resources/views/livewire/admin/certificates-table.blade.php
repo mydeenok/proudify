@@ -89,7 +89,8 @@
                                 type="checkbox"
                                 x-ref="selectAll"
                                 @change="toggleAll($event)"
-                                aria-label="Select all rows"
+                                aria-label="Select all downloadable rows"
+                                title="Select all certificates with a PDF"
                                 class="w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer bg-surface">
                         </th>
                         <th class="px-sm py-sm font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider w-20">Preview</th>
@@ -109,12 +110,20 @@
                         ])
                         >
                         <td class="px-md py-xs">
-                            <input
-                                type="checkbox"
-                                name="certificate_ids[]"
-                                value="{{ $certificate->id }}"
-                                form="bulk-download-form"
-                                class="row-checkbox w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer bg-surface">
+                            @if ($certificate->pdf_path)
+                                <input
+                                    type="checkbox"
+                                    name="certificate_ids[]"
+                                    value="{{ $certificate->id }}"
+                                    form="bulk-download-form"
+                                    class="row-checkbox w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container cursor-pointer bg-surface">
+                            @else
+                                <input
+                                    type="checkbox"
+                                    disabled
+                                    title="PDF not generated yet"
+                                    class="w-4 h-4 rounded border-outline-variant opacity-40 cursor-not-allowed">
+                            @endif
                         </td>
                         <td class="px-sm py-xs">
                             @if ($certificate->image_path && Storage::disk('local')->exists($certificate->image_path))
