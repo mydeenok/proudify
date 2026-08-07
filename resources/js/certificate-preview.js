@@ -1,21 +1,57 @@
 /**
  * create_certificate_proudify_user — live preview panel.
  *
- * Renders the actual template (same CertificateRenderService::renderPreviewHtml
- * the standalone Preview Certificate page uses) inside an iframe, debounced
- * on input — replaces an earlier generic mockup-card preview that didn't
- * reflect the real design at all. Registered as Alpine.data() components
- * (see resources/views/certificates/create.blade.php for the x-data wiring)
- * rather than an imperative DOMContentLoaded script, so the component's
- * lifecycle and DOM refs are owned by Alpine instead of manual querySelector.
+ * Canvas templates paint via the same Node/Skia engine as the issued PDF
+ * (image/png returned from /certificates/preview/render). Legacy HTML
+ * templates keep the iframe/srcdoc path. Registered as Alpine.data()
+ * components (see resources/views/certificates/create.blade.php).
  */
 export function registerCertificatePreview(Alpine) {
-    Alpine.data('certificatePreview', (templateId) => ({
+    Alpine.data('certificatePreview', (templateId, previewMode = 'html', options = {}) => ({
         submitting: false,
         loading: true,
         zoom: 1,
         baseScale: 1,
         debounceTimer: null,
+        draftTimer: null,
+        previewMode,
+        draftSaveUrl: options.draftSaveUrl ?? '/certificates/drafts',
+        draftDeleteUrl: options.draftDeleteUrl ?? '/certificates/drafts',
+        fieldHighlights: options.fieldHighlights ?? [],
+        stepDraft: !!options.hasDraft,
+        stepPreview: false,
+        stepIssue: false,
+        draftStatus: options.hasDraft ? 'Draft restored' : '',
+        activeHighlight: null,
+        checklistOpen: false,
+        previewModalOpen: false,
+        previewModalLoading: false,
+        checklist: {
+            title: false,
+            recipient: false,
+            date: false,
+            signature: !!options.profileHasSignature,
+            logo: !!options.profileHasLogo,
+            checkLogo: !!options.templateNeedsLogo,
+            checkSignature: !!options.templateNeedsSignature,
+            canSubmit: false,
+        },
+        profileHasSignature: !!options.profileHasSignature,
+        profileHasLogo: !!options.profileHasLogo,
+        templateNeedsLogo: !!options.templateNeedsLogo,
+        templateNeedsSignature: !!options.templateNeedsSignature,
+
+        get highlightStyle() {
+            const rect = this.activeHighlight;
+            if (!rect) return '';
+
+            return [
+                `left:${rect.xPercent}%`,
+                `top:${rect.yPercent}%`,
+                `width:${rect.widthPercent}%`,
+                `height:${rect.heightPercent}%`,
+            ].join(';');
+        },
 
         init() {
             // $refs for this component's own children (viewport/canvas/frame)
@@ -23,32 +59,30 @@ export function registerCertificatePreview(Alpine) {
             // runs - Alpine resolves x-data on an element and calls init()
             // before it's walked that element's children to register their
             // x-ref bindings. $nextTick defers until after that walk
-            // completes. Without this, referencing an unpopulated $refs.frame
-            // throws synchronously, which - since this fires from inside
-            // Alpine's initial Array.prototype.forEach over every x-data root
-            // on the page - aborts that loop and silently leaves every other
-            // component on the page (including unrelated ones later in the
-            // DOM) never initialized.
+            // completes.
             this.$nextTick(() => {
                 this.baseScale = this.computeBaseScale();
                 this.applyZoom();
+                this.refreshIssueStep();
 
                 window.addEventListener('resize', () => {
                     this.baseScale = this.computeBaseScale();
                     this.applyZoom();
                 });
 
-                // The initial iframe content comes from server-rendered
-                // initialPreviewHtml (no fetch needed for the first paint),
-                // but the template's own fonts (Google Fonts etc loaded via
-                // its html_content) still need to finish loading before the
-                // design is actually done rendering - hiding the indicator
-                // earlier than that would flash fallback-font text as if it
-                // were the real design.
-                waitForFrameFontsReady(this.$refs.frame).then(() => {
+                this.settleInitialPaint().then(() => {
                     this.loading = false;
+                    this.stepPreview = true;
                 });
             });
+        },
+
+        settleInitialPaint() {
+            if (this.previewMode === 'canvas') {
+                return waitForImageReady(this.$refs.previewImage);
+            }
+
+            return waitForFrameFontsReady(this.$refs.frame);
         },
 
         // The canvas renders at the certificate's real native pixel size
@@ -77,82 +111,206 @@ export function registerCertificatePreview(Alpine) {
             this.applyZoom();
         },
 
+        onFieldInput() {
+            this.refreshIssueStep();
+            this.scheduleRerender();
+            this.scheduleDraftSave();
+        },
+
+        markPreviewStale() {
+            this.refreshIssueStep();
+            this.scheduleDraftSave();
+        },
+
         scheduleRerender() {
             clearTimeout(this.debounceTimer);
             this.debounceTimer = setTimeout(() => this.rerender(), 400);
+        },
+
+        scheduleDraftSave() {
+            clearTimeout(this.draftTimer);
+            this.draftStatus = 'Saving draft…';
+            this.draftTimer = setTimeout(() => this.saveDraft(), 2000);
+        },
+
+        async saveDraftNow() {
+            clearTimeout(this.draftTimer);
+            await this.saveDraft();
+        },
+
+        async saveDraft() {
+            try {
+                const body = this.buildFormBody();
+                const response = await fetch(this.draftSaveUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                        Accept: 'application/json',
+                    },
+                    body,
+                });
+
+                if (!response.ok) {
+                    this.draftStatus = 'Draft save failed';
+                    return;
+                }
+
+                this.stepDraft = true;
+                this.draftStatus = 'Draft saved';
+            } catch (error) {
+                this.draftStatus = 'Draft save failed';
+            }
+        },
+
+        buildFormBody() {
+            const body = new URLSearchParams({
+                template_id: templateId ?? '',
+                title: this.$refs.title?.value ?? document.getElementById('title')?.value ?? '',
+                recipient_name: this.$refs.recipient_name?.value ?? document.getElementById('recipient_name')?.value ?? '',
+                recipient_email: this.$refs.recipient_email?.value ?? document.getElementById('recipient_email')?.value ?? '',
+                description: this.$refs.description?.value ?? document.getElementById('description')?.value ?? '',
+                date_of_issue: this.$refs.date_of_issue?.value ?? document.getElementById('date_of_issue')?.value ?? '',
+                date_of_expiry: this.$refs.date_of_expiry?.value ?? document.getElementById('date_of_expiry')?.value ?? '',
+            });
+
+            this.$el.querySelectorAll('[data-custom-text-field]').forEach((el) => {
+                body.append(`custom_fields[${el.dataset.customTextField}]`, el.value ?? '');
+            });
+
+            return body;
+        },
+
+        setHighlight(binding) {
+            if (this.previewMode !== 'canvas') {
+                this.activeHighlight = null;
+                return;
+            }
+
+            this.activeHighlight = this.fieldHighlights.find((item) => item.binding === binding) ?? null;
+        },
+
+        clearHighlight() {
+            this.activeHighlight = null;
+        },
+
+        refreshIssueStep() {
+            const title = (this.$refs.title?.value ?? document.getElementById('title')?.value ?? '').trim();
+            const recipient = (this.$refs.recipient_name?.value ?? document.getElementById('recipient_name')?.value ?? '').trim();
+            const email = (this.$refs.recipient_email?.value ?? document.getElementById('recipient_email')?.value ?? '').trim();
+            const date = (this.$refs.date_of_issue?.value ?? document.getElementById('date_of_issue')?.value ?? '').trim();
+            this.stepIssue = !!(title && recipient && email && date);
+        },
+
+        openChecklist() {
+            const title = (document.getElementById('title')?.value ?? '').trim();
+            const recipient = (document.getElementById('recipient_name')?.value ?? '').trim();
+            const date = (document.getElementById('date_of_issue')?.value ?? '').trim();
+
+            this.checklist = {
+                title: !!title,
+                recipient: !!recipient,
+                date: !!date,
+                signature: this.profileHasSignature,
+                logo: this.profileHasLogo,
+                checkLogo: this.templateNeedsLogo,
+                checkSignature: this.templateNeedsSignature,
+                canSubmit: !!(
+                    title
+                    && recipient
+                    && date
+                    && (!this.templateNeedsSignature || this.profileHasSignature)
+                    && (!this.templateNeedsLogo || this.profileHasLogo)
+                ),
+            };
+            this.checklistOpen = true;
+        },
+
+        confirmIssue() {
+            if (!this.checklist.canSubmit || this.submitting) return;
+            this.submitting = true;
+            this.checklistOpen = false;
+            document.getElementById('certificate-create-form')?.submit();
+        },
+
+        async openPreviewModal() {
+            this.previewModalOpen = true;
+            this.previewModalLoading = true;
+            document.body.classList.add('overflow-hidden');
+
+            try {
+                await this.rerender();
+                this.syncModalPreview();
+                this.stepPreview = true;
+            } finally {
+                this.previewModalLoading = false;
+            }
+        },
+
+        closePreviewModal() {
+            this.previewModalOpen = false;
+            this.previewModalLoading = false;
+            document.body.classList.remove('overflow-hidden');
+        },
+
+        syncModalPreview() {
+            if (this.previewMode === 'canvas') {
+                const src = this.$refs.previewImage?.src;
+                if (this.$refs.modalPreviewImage && src) {
+                    this.$refs.modalPreviewImage.src = src;
+                }
+                return;
+            }
+
+            if (this.$refs.modalPreviewFrame && this.$refs.frame) {
+                this.$refs.modalPreviewFrame.srcdoc = this.$refs.frame.srcdoc || '';
+            }
         },
 
         async rerender() {
             this.loading = true;
 
             try {
-                const body = new URLSearchParams({
-                    template_id: templateId ?? '',
-                    title: this.$refs.title?.value ?? '',
-                    recipient_name: this.$refs.recipient_name?.value ?? '',
-                    description: this.$refs.description?.value ?? '',
-                    date_of_issue: this.$refs.date_of_issue?.value ?? '',
-                    date_of_expiry: this.$refs.date_of_expiry?.value ?? '',
-                });
-
-                // Admin-defined custom text fields (see
-                // Template::custom_field_schema) — collected by attribute
-                // rather than a fixed id list, since the set of fields
-                // varies per template. Image-type custom fields have
-                // nothing to preview live before upload, so they're
-                // intentionally left out here.
-                this.$el.querySelectorAll('[data-custom-text-field]').forEach((el) => {
-                    body.append(`custom_fields[${el.dataset.customTextField}]`, el.value ?? '');
-                });
-
+                const body = this.buildFormBody();
                 const response = await fetch('/certificates/preview/render', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                        Accept: 'text/html',
+                        Accept: 'image/png, text/html',
                     },
                     body,
                 });
 
-                if (response.ok) {
+                if (!response.ok) {
+                    return;
+                }
+
+                const mode = response.headers.get('X-Preview-Mode') || this.previewMode;
+
+                if (mode === 'canvas') {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const previous = this.$refs.previewImage?.src;
+                    if (this.$refs.previewImage) {
+                        this.$refs.previewImage.src = url;
+                        await waitForImageReady(this.$refs.previewImage);
+                    }
+                    if (previous && previous.startsWith('blob:')) {
+                        URL.revokeObjectURL(previous);
+                    }
+                    this.previewMode = 'canvas';
+                } else if (this.$refs.frame) {
                     this.$refs.frame.srcdoc = await response.text();
                     await waitForFrameFontsReady(this.$refs.frame);
+                    this.previewMode = 'html';
+                }
+
+                this.stepPreview = true;
+                if (this.previewModalOpen) {
+                    this.syncModalPreview();
                 }
             } finally {
                 this.loading = false;
             }
-        },
-    }));
-
-    // "Preview Certificate" button — mirrors whatever's currently typed
-    // into the create-certificate form into a hidden target="_blank" form
-    // so the standalone preview page opens in a new tab with the same
-    // values already filled in. Lives in the page-header actions slot, a
-    // separate DOM subtree from the form/preview panel above, so it reads
-    // current field values by id rather than sharing that component's
-    // scope. Custom text fields are appended as hidden inputs built fresh
-    // each click (rather than fixed markup), since the set varies per
-    // template.
-    Alpine.data('previewLaunch', () => ({
-        launch() {
-            document.getElementById('preview_launch_title').value = document.getElementById('title')?.value ?? '';
-            document.getElementById('preview_launch_recipient_name').value = document.getElementById('recipient_name')?.value ?? '';
-            document.getElementById('preview_launch_description').value = document.getElementById('description')?.value ?? '';
-            document.getElementById('preview_launch_date_of_issue').value = document.getElementById('date_of_issue')?.value ?? '';
-            document.getElementById('preview_launch_date_of_expiry').value = document.getElementById('date_of_expiry')?.value ?? '';
-
-            const launchForm = document.getElementById('preview-launch-form');
-            launchForm.querySelectorAll('[data-custom-field-hidden]').forEach((el) => el.remove());
-            document.querySelectorAll('[data-custom-text-field]').forEach((el) => {
-                const hidden = document.createElement('input');
-                hidden.type = 'hidden';
-                hidden.name = `custom_fields[${el.dataset.customTextField}]`;
-                hidden.value = el.value ?? '';
-                hidden.dataset.customFieldHidden = 'true';
-                launchForm.appendChild(hidden);
-            });
-
-            launchForm.submit();
         },
     }));
 }
@@ -165,6 +323,10 @@ export function registerCertificatePreview(Alpine) {
  * first rather than unconditionally waiting for the event.
  */
 function waitForFrameFontsReady(frame) {
+    if (!frame) {
+        return Promise.resolve();
+    }
+
     const settle = (doc) => (doc?.fonts?.ready ? doc.fonts.ready.catch(() => {}) : Promise.resolve());
 
     if (frame.contentDocument?.readyState === 'complete') {
@@ -173,5 +335,20 @@ function waitForFrameFontsReady(frame) {
 
     return new Promise((resolve) => {
         frame.addEventListener('load', () => resolve(settle(frame.contentDocument)), { once: true });
+    });
+}
+
+function waitForImageReady(image) {
+    if (!image) {
+        return Promise.resolve();
+    }
+
+    if (image.complete && image.naturalWidth > 0) {
+        return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+        image.addEventListener('load', () => resolve(), { once: true });
+        image.addEventListener('error', () => resolve(), { once: true });
     });
 }
