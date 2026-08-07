@@ -34,17 +34,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="bg-surface rounded-xl border border-outline-variant p-lg shadow-sm">
-            <x-input-label for="html_content" value="HTML content" />
-            <p class="font-body-sm text-body-sm text-on-surface-variant mb-sm">
-                Available placeholders: {title} {recipient_name} {description} {date_of_issue} {date_of_expiry} {organization_name} {qrcode} {signature} {verification_code}
-            </p>
-            <textarea id="html_content" name="html_content" rows="16" required
-                class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-mono text-body-sm text-on-surface focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none"
-            >{{ old('html_content', $template?->html_content) }}</textarea>
-            <x-input-error :messages="$errors->get('html_content')" />
-        </div>
     </div>
 
     <div class="space-y-lg">

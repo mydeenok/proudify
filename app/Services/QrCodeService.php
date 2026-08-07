@@ -42,6 +42,17 @@ class QrCodeService
      */
     public function generateDataUri(string $data): string
     {
+        return 'data:image/png;base64,'.base64_encode($this->generatePngBytes($data));
+    }
+
+    /**
+     * Raw PNG bytes for the same sample QR — the canvas preview painter
+     * needs a real file path on disk (Skia loads by path), so the preview
+     * pipeline writes these bytes to a temp storage key and deletes them
+     * after the paint finishes.
+     */
+    public function generatePngBytes(string $data): string
+    {
         $result = (new Builder(
             writer: new PngWriter,
             data: $data,
@@ -51,6 +62,6 @@ class QrCodeService
             margin: 10,
         ))->build();
 
-        return 'data:image/png;base64,'.base64_encode($result->getString());
+        return $result->getString();
     }
 }

@@ -135,19 +135,18 @@ class CertificateRenderServiceTest extends TestCase
 
     public function test_watermark_corner_is_detected_once_and_cached_on_the_template(): void
     {
-        // Variance (not darkness) is what the detector measures - a solid
-        // color fill is perfectly uniform and would read as "empty" same
-        // as blank white, so this needs real content (text has contrasting
-        // edges) specifically in the top corners; the bottom stays blank.
+        // Pure canvas templates pick the emptiest corner from element
+        // geometry (no Chrome). Busy top corners → watermark lands bottom.
         $template = Template::factory()->create([
             'watermark_corner' => null,
             'orientation' => 'landscape',
-            'html_content' => <<<'HTML'
-                <html><body style="margin:0;">
-                    <div style="position:absolute;top:5px;left:5px;font-size:36px;font-weight:bold;">BUSY TOP LEFT CONTENT HERE XXXX</div>
-                    <div style="position:absolute;top:5px;right:5px;font-size:36px;font-weight:bold;">BUSY TOP RIGHT CONTENT HERE XXXX</div>
-                </body></html>
-                HTML,
+            'canvas_json' => [
+                'elements' => [
+                    ['type' => 'text', 'content' => 'TL', 'xPercent' => 0, 'yPercent' => 0, 'widthPercent' => 25, 'heightPercent' => 15, 'z' => 0],
+                    ['type' => 'text', 'content' => 'TR', 'xPercent' => 75, 'yPercent' => 0, 'widthPercent' => 25, 'heightPercent' => 15, 'z' => 1],
+                ],
+            ],
+            'html_content' => '<html><body></body></html>',
         ]);
         $certificate = Certificate::factory()->create(['template_id' => $template->id]);
 
@@ -156,9 +155,6 @@ class CertificateRenderServiceTest extends TestCase
         $template->refresh();
         $this->assertContains($template->watermark_corner, ['bottom-left', 'bottom-right']);
 
-        // Second render must not re-trigger detection - it reads the now-
-        // cached value. If this were slow (seconds, a real Chrome launch),
-        // that alone would indicate the cache isn't being used.
         $start = microtime(true);
         app(CertificateRenderService::class)->renderHtml($certificate->fresh());
         $this->assertLessThan(1.0, microtime(true) - $start, 'Second render should not re-run corner detection.');
