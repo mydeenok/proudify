@@ -38,10 +38,12 @@ class BulkUploadController extends Controller
      */
     public function create(Request $request): View
     {
+        $templateId = $request->integer('template');
+
         return view('bulk-upload.wizard', [
             'mode' => 'tenant',
-            'step' => 'upload',
-            'templateId' => $request->integer('template'),
+            'step' => $templateId > 0 ? 'upload' : 'template',
+            'templateId' => $templateId > 0 ? $templateId : null,
         ]);
     }
 

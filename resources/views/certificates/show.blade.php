@@ -113,6 +113,23 @@ $shell = $isAdmin ? 'layouts.admin-shell' : 'layouts.user-shell';
                     </a>
                 </template>
 
+                @if (session('issued_template_id') || $certificate->template_id)
+                    <a
+                        href="{{ route('certificates.create', ['template' => session('issued_template_id', $certificate->template_id), 'issue_another' => 1]) }}"
+                        class="btn-secondary w-full"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">add_circle</span>
+                        Issue another
+                    </a>
+                    <a
+                        href="{{ route('bulk-upload.create', ['template' => session('issued_template_id', $certificate->template_id)]) }}"
+                        class="btn-secondary w-full"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">upload_file</span>
+                        Issue many with this template
+                    </a>
+                @endif
+
                 <a href="{{ $certificate->verify_url }}" target="_blank" class="btn-secondary w-full">
                     <span class="material-symbols-outlined text-[18px]">verified</span>
                     Public Verification
