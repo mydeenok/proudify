@@ -5,43 +5,86 @@
 <head>
     <x-head :title="$title" />
 </head>
-<body class="bg-floor min-h-screen flex flex-col antialiased selection:bg-primary selection:text-on-primary">
+<body class="bg-floor h-dvh overflow-hidden flex flex-col antialiased selection:bg-primary selection:text-on-primary">
     <x-site-header />
 
-    <main class="flex-grow flex items-center justify-center p-md relative">
-        <div aria-hidden="true" class="absolute inset-0 pointer-events-none overflow-hidden">
-            <div class="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] rounded-full bg-primary-fixed opacity-30 blur-[120px]"></div>
-            <div class="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-secondary-fixed opacity-40 blur-[100px]"></div>
+    <main class="flex-1 min-h-0 relative overflow-y-auto">
+        <div aria-hidden="true" class="absolute inset-0 pointer-events-none overflow-hidden lg:hidden">
+            <div class="absolute top-[-12%] left-[-8%] w-[50%] h-[40%] rounded-full bg-primary-fixed opacity-35 blur-[110px]"></div>
+            <div class="absolute bottom-[-12%] right-[-8%] w-[50%] h-[40%] rounded-full bg-secondary-fixed opacity-40 blur-[100px]"></div>
         </div>
 
-        <div class="w-full max-w-[440px] relative z-10">
-            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-xl sm:p-margin flex flex-col gap-xl relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-container to-tertiary-container opacity-90"></div>
-
-                <header class="flex flex-col items-center text-center gap-sm mt-xs">
-                    @isset($header)
-                        <div class="flex flex-col items-center gap-xs">{{ $header }}</div>
-                    @else
-                        <h1 class="font-headline-lg text-headline-lg text-on-surface">{{ $title ?? config('app.name') }}</h1>
-                    @endisset
-                </header>
-
-                {{ $slot }}
-
-                <div class="flex flex-col items-center gap-xs pt-md border-t border-outline-variant/50">
-                    <div class="flex items-center gap-xs text-on-surface-variant">
-                        <span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">shield</span>
-                        <span class="font-body-sm text-body-sm">Your data is encrypted and secure</span>
+        <div class="relative z-10 min-h-full lg:min-h-0 lg:h-full max-w-[1100px] mx-auto px-md py-md lg:py-lg flex items-stretch justify-center">
+            <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-0 lg:rounded-2xl lg:border lg:border-outline-variant lg:overflow-hidden lg:bg-surface-container-lowest lg:shadow-card lg:min-h-[min(640px,calc(100dvh-72px-2.5rem))]">
+                {{-- Brand panel (desktop) --}}
+                <aside class="hidden lg:flex flex-col justify-between bg-on-surface text-white p-xl relative overflow-hidden">
+                    <div aria-hidden="true" class="absolute inset-0 pointer-events-none">
+                        <div class="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-primary-container/40 blur-2xl"></div>
+                        <div class="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-secondary/30 blur-3xl"></div>
+                        <div class="absolute inset-0 opacity-[0.07]" style="background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0); background-size: 22px 22px;"></div>
                     </div>
-                </div>
-            </div>
 
-            @isset($footer)
-                <div class="mt-md text-center">{{ $footer }}</div>
-            @endisset
+                    <div class="relative">
+                        <p class="font-label-sm text-label-sm text-white/70 uppercase tracking-wider mb-md">{{ config('app.name') }}</p>
+                        <h2 class="font-headline-xl text-headline-xl text-white tracking-tight max-w-sm">
+                            Certificate designs that look publish-ready.
+                        </h2>
+                        <p class="mt-md font-body-md text-body-md text-white/75 max-w-sm">
+                            Build templates once, issue with confidence, and let recipients verify anything in seconds.
+                        </p>
+                    </div>
+
+                    <ul class="relative flex flex-col gap-md mt-xl">
+                        <li class="flex items-start gap-sm">
+                            <span class="mt-0.5 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">design_services</span>
+                            </span>
+                            <div>
+                                <p class="font-label-md text-label-md text-white">Visual Builder</p>
+                                <p class="font-body-sm text-body-sm text-white/65">Lock layout, fill details at issue time.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-sm">
+                            <span class="mt-0.5 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+                            </span>
+                            <div>
+                                <p class="font-label-md text-label-md text-white">Instant verification</p>
+                                <p class="font-body-sm text-body-sm text-white/65">QR-backed credentials people can trust.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-sm">
+                            <span class="mt-0.5 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">groups</span>
+                            </span>
+                            <div>
+                                <p class="font-label-md text-label-md text-white">Bulk issuing</p>
+                                <p class="font-body-sm text-body-sm text-white/65">Upload a sheet, send many at once.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </aside>
+
+                {{-- Form panel --}}
+                <section class="flex flex-col justify-center bg-surface-container-lowest border border-outline-variant lg:border-0 rounded-xl lg:rounded-none shadow-card-sm lg:shadow-none px-lg py-lg sm:px-xl sm:py-xl">
+                    <div class="w-full max-w-[400px] mx-auto flex flex-col gap-lg">
+                        <header class="flex flex-col items-center lg:items-start text-center lg:text-left gap-xs">
+                            @isset($header)
+                                {{ $header }}
+                            @else
+                                <h1 class="font-headline-lg text-headline-lg text-on-surface">{{ $title ?? config('app.name') }}</h1>
+                            @endisset
+                        </header>
+
+                        {{ $slot }}
+
+                        @isset($footer)
+                            <div class="text-center lg:text-left">{{ $footer }}</div>
+                        @endisset
+                    </div>
+                </section>
+            </div>
         </div>
     </main>
-
-    <x-site-footer />
 </body>
 </html>
