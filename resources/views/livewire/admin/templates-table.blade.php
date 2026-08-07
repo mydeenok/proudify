@@ -48,6 +48,12 @@
                     <a href="{{ route('admin.templates.builder', $template) }}" wire:navigate class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-container-low text-on-surface-variant hover:text-primary transition-colors" title="Edit in Builder">
                         <span class="material-symbols-outlined text-[20px]">edit</span>
                     </a>
+                    <form method="POST" action="{{ route('admin.templates.duplicate', $template) }}">
+                        @csrf
+                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-container-low text-on-surface-variant hover:text-primary transition-colors" title="Duplicate">
+                            <span class="material-symbols-outlined text-[20px]">content_copy</span>
+                        </button>
+                    </form>
                     <a href="{{ route('admin.templates.edit', $template) }}" wire:navigate class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors" title="Settings">
                         <span class="material-symbols-outlined text-[20px]">settings</span>
                     </a>
