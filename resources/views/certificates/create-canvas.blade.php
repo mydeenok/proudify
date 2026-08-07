@@ -54,12 +54,22 @@
                 class="bg-white shadow-xl border border-outline-variant relative shrink-0"
                 style="width: {{ $canvasWidth }}px; height: {{ $canvasHeight }}px;"
             >
-                <iframe
-                    title="Certificate design"
-                    class="absolute inset-0 w-full h-full border-0"
-                    style="pointer-events: none;"
-                    srcdoc="{{ $initialPreviewHtml }}"
-                ></iframe>
+                @if (($previewMode ?? 'html') === 'canvas')
+                    <img
+                        title="Certificate design"
+                        alt="Certificate design"
+                        class="absolute inset-0 w-full h-full object-contain border-0"
+                        style="pointer-events: none;"
+                        src="{{ $initialPreviewDataUri }}"
+                    >
+                @else
+                    <iframe
+                        title="Certificate design"
+                        class="absolute inset-0 w-full h-full border-0"
+                        style="pointer-events: none;"
+                        srcdoc="{{ $initialPreviewHtml }}"
+                    ></iframe>
+                @endif
 
                 @foreach ($overlayElements as $element)
                     @php
