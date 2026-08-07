@@ -7,6 +7,7 @@ use App\Models\Template;
 use App\Services\CertificateRenderService;
 use App\Services\LayoutToHtmlRenderer;
 use App\Services\TemplateBackgroundImportService;
+use App\Services\TemplateThumbnailService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -61,8 +62,13 @@ class CertificateBuilderController extends Controller
      * Milestone 2 Browsershot pipeline actually reads at issuance time —
      * and marks the template live.
      */
-    public function publish(Request $request, Template $template, LayoutToHtmlRenderer $renderer, TemplateBackgroundImportService $importService): JsonResponse
-    {
+    public function publish(
+        Request $request,
+        Template $template,
+        LayoutToHtmlRenderer $renderer,
+        TemplateBackgroundImportService $importService,
+        TemplateThumbnailService $thumbnails,
+    ): JsonResponse {
         $validated = $request->validate([
             'canvas_json' => ['required', 'array'],
         ]);
@@ -78,6 +84,10 @@ class CertificateBuilderController extends Controller
             'watermark_corner' => null,
             'is_active' => true,
         ]);
+
+        // Best-effort card thumbnail from the same canvas painter — publish
+        // still succeeds if Node/fonts are unavailable on this host.
+        $thumbnails->generateQuietly($template->fresh(), $request->user());
 
         return response()->json(['status' => 'published', 'redirect' => route('admin.templates.index')]);
     }
