@@ -7,6 +7,7 @@ use App\Exceptions\SubscriptionQuotaExceededException;
 use App\Jobs\Certificates\ConvertCertificatePdfToImageJob;
 use App\Jobs\Certificates\GenerateCertificatePdfJob;
 use App\Models\Certificate;
+use App\Models\CertificateDraft;
 use App\Models\Template;
 use App\Services\CertificateRenderService;
 use App\Services\TemplateBackgroundImportService;
@@ -29,19 +30,83 @@ class CertificateController extends Controller
     public function create(Request $request, CertificateRenderService $renderService): View
     {
         $template = Template::active()->findOrFail($request->integer('template'));
+        $user = $request->user();
+        $issueAnother = $request->boolean('issue_another');
+
+        $draft = CertificateDraft::query()
+            ->where('user_id', $user->id)
+            ->where('template_id', $template->id)
+            ->first();
+
+        $draftPayload = is_array($draft?->payload) ? $draft->payload : [];
+
+        if ($issueAnother) {
+            unset($draftPayload['recipient_name'], $draftPayload['recipient_email']);
+        }
 
         // Same real-template render the standalone Preview Certificate page
         // and the "previewRender" endpoint use — the inline panel used to
         // show a generic mockup card that didn't match what would actually
-        // get issued.
-        $initialPreviewHtml = $renderService->renderPreviewHtml($template, $request->user(), [
-            'date_of_issue' => now()->toDateString(),
-        ]);
+        // get issued. Canvas templates paint via the Node engine as
+        // the issued PDF (image/png); legacy HTML templates keep srcdoc.
+        $previewForm = array_merge(
+            ['date_of_issue' => now()->toDateString()],
+            array_intersect_key($draftPayload, array_flip([
+                'title', 'recipient_name', 'description', 'date_of_issue', 'date_of_expiry', 'custom_fields',
+            ])),
+        );
+
+        $preview = $renderService->renderPreview($template, $user, $previewForm);
+
+        $elements = is_array($template->canvas_json['elements'] ?? null)
+            ? $template->canvas_json['elements']
+            : [];
+
+        $templateNeedsLogo = collect($elements)->contains(
+            fn (array $el) => ($el['type'] ?? null) === 'company_logo'
+                || ($el['binding'] ?? null) === 'company_logo'
+                || preg_match('/^company_logo(_\d+)?$/', (string) ($el['binding'] ?? '')) === 1
+        );
+        $templateNeedsSignature = collect($elements)->contains(
+            fn (array $el) => ($el['type'] ?? null) === 'signature'
+                || ($el['binding'] ?? null) === 'signature'
+        );
+
+        $missingSignature = $templateNeedsSignature && blank($user->signature_path);
+        $missingLogo = $templateNeedsLogo && empty($user->org_logos);
+
+        $fieldHighlights = collect($elements)
+            ->filter(fn (array $el) => filled($el['binding'] ?? null))
+            ->map(fn (array $el) => [
+                'binding' => $el['binding'],
+                'xPercent' => (float) ($el['xPercent'] ?? 0),
+                'yPercent' => (float) ($el['yPercent'] ?? 0),
+                'widthPercent' => (float) ($el['widthPercent'] ?? 10),
+                'heightPercent' => (float) ($el['heightPercent'] ?? 10),
+            ])
+            ->values()
+            ->all();
 
         return view('certificates.create', [
             'template' => $template,
-            'initialPreviewHtml' => $initialPreviewHtml,
+            'previewMode' => $preview['mode'],
+            'initialPreviewHtml' => $preview['mode'] === 'html' ? $preview['body'] : null,
+            'initialPreviewDataUri' => $preview['mode'] === 'canvas'
+                ? 'data:image/png;base64,'.base64_encode($preview['body'])
+                : null,
             'customFields' => $template->editableCustomFields(),
+            'draftPayload' => $draftPayload,
+            'hasDraft' => $draft !== null && ! $issueAnother,
+            'missingSignature' => $missingSignature,
+            'missingLogo' => $missingLogo,
+            'templateNeedsLogo' => $templateNeedsLogo,
+            'templateNeedsSignature' => $templateNeedsSignature,
+            'profileHasSignature' => filled($user->signature_path),
+            'profileHasLogo' => ! empty($user->org_logos),
+            'fieldHighlights' => $fieldHighlights,
+            'issueAnother' => $issueAnother,
+            'draftSaveUrl' => route('certificates.drafts.save'),
+            'draftDeleteUrl' => route('certificates.drafts.destroy'),
         ]);
     }
 
@@ -83,9 +148,9 @@ class CertificateController extends Controller
 
         // Text bindings the overlay will handle are rendered blank in the
         // background so the overlay input's own text is the only copy
-        // visible — otherwise renderPreviewHtml's sample fallbacks
-        // ("Certificate Title" etc) would show through underneath it.
-        $initialPreviewHtml = $renderService->renderPreviewHtml($template, $request->user(), [
+        // visible — otherwise sample fallbacks ("Certificate Title" etc)
+        // would show through underneath it.
+        $preview = $renderService->renderPreview($template, $request->user(), [
             'title' => '',
             'recipient_name' => '',
             'description' => '',
@@ -95,7 +160,11 @@ class CertificateController extends Controller
             'template' => $template,
             'customFields' => $template->editableCustomFields(),
             'overlayElements' => $overlayElements,
-            'initialPreviewHtml' => $initialPreviewHtml,
+            'previewMode' => $preview['mode'],
+            'initialPreviewHtml' => $preview['mode'] === 'html' ? $preview['body'] : null,
+            'initialPreviewDataUri' => $preview['mode'] === 'canvas'
+                ? 'data:image/png;base64,'.base64_encode($preview['body'])
+                : null,
             'canvasWidth' => $template->orientation === 'portrait' ? 707 : 1000,
             'canvasHeight' => $template->orientation === 'portrait' ? 1000 : 707,
         ]);
@@ -111,28 +180,35 @@ class CertificateController extends Controller
     {
         [$template, $validated] = $this->resolveTemplateAndValidatePreview($request);
 
-        $html = $renderService->renderPreviewHtml($template, $request->user(), $validated);
+        $preview = $renderService->renderPreview($template, $request->user(), $validated);
 
         return view('certificates.preview', [
             'template' => $template,
             'customFields' => $template->editableCustomFields(),
             'formData' => $validated,
-            'initialHtml' => $html,
+            'previewMode' => $preview['mode'],
+            'initialHtml' => $preview['mode'] === 'html' ? $preview['body'] : null,
+            'initialPreviewDataUri' => $preview['mode'] === 'canvas'
+                ? 'data:image/png;base64,'.base64_encode($preview['body'])
+                : null,
         ]);
     }
 
     /**
-     * Re-render endpoint the preview page's iframe polls (debounced) as
-     * the user keeps editing fields, so the preview stays live without a
-     * full page reload.
+     * Re-render endpoint the preview surfaces poll (debounced) as the user
+     * keeps editing fields. Returns image/png for canvas templates (same
+     * painter as the issued PDF) or text/html for legacy templates —
+     * Content-Type + X-Preview-Mode tell the client which surface to update.
      */
     public function previewRender(Request $request, CertificateRenderService $renderService): Response
     {
         [$template, $validated] = $this->resolveTemplateAndValidatePreview($request);
 
-        $html = $renderService->renderPreviewHtml($template, $request->user(), $validated);
+        $preview = $renderService->renderPreview($template, $request->user(), $validated);
 
-        return response($html)->header('Content-Type', 'text/html');
+        return response($preview['body'])
+            ->header('Content-Type', $preview['contentType'])
+            ->header('X-Preview-Mode', $preview['mode']);
     }
 
     /**
@@ -192,7 +268,82 @@ class CertificateController extends Controller
             return redirect()->route('pricing')->with('quota_message', $exception->getMessage());
         }
 
-        return redirect()->route('certificates.show', $certificate)->with('status', 'Certificate issued.');
+        CertificateDraft::query()
+            ->where('user_id', $request->user()->id)
+            ->where('template_id', $template->id)
+            ->delete();
+
+        return redirect()
+            ->route('certificates.show', $certificate)
+            ->with('status', 'Certificate issued.')
+            ->with('issued_template_id', $template->id);
+    }
+
+    public function saveDraft(Request $request): JsonResponse
+    {
+        $template = Template::active()->findOrFail($request->integer('template_id'));
+        $validated = $request->validate($this->draftValidationRules($template));
+
+        $draft = CertificateDraft::query()->updateOrCreate(
+            [
+                'user_id' => $request->user()->id,
+                'template_id' => $template->id,
+            ],
+            [
+                'payload' => [
+                    'title' => $validated['title'] ?? null,
+                    'recipient_name' => $validated['recipient_name'] ?? null,
+                    'recipient_email' => $validated['recipient_email'] ?? null,
+                    'description' => $validated['description'] ?? null,
+                    'date_of_issue' => $validated['date_of_issue'] ?? null,
+                    'date_of_expiry' => $validated['date_of_expiry'] ?? null,
+                    'custom_fields' => $validated['custom_fields'] ?? [],
+                ],
+            ],
+        );
+
+        return response()->json([
+            'status' => 'saved',
+            'saved_at' => $draft->updated_at?->toIso8601String(),
+        ]);
+    }
+
+    public function destroyDraft(Request $request): JsonResponse
+    {
+        $templateId = $request->validate([
+            'template_id' => ['required', 'exists:templates,id'],
+        ])['template_id'];
+
+        CertificateDraft::query()
+            ->where('user_id', $request->user()->id)
+            ->where('template_id', $templateId)
+            ->delete();
+
+        return response()->json(['status' => 'deleted']);
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function draftValidationRules(Template $template): array
+    {
+        $rules = [
+            'template_id' => ['required', 'exists:templates,id'],
+            'title' => ['nullable', 'string', 'max:150'],
+            'recipient_name' => ['nullable', 'string', 'max:150'],
+            'recipient_email' => ['nullable', 'email', 'max:255'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'date_of_issue' => ['nullable', 'date'],
+            'date_of_expiry' => ['nullable', 'date'],
+        ];
+
+        foreach ($template->editableCustomFields() as $field) {
+            if ($field['type'] === 'text') {
+                $rules["custom_fields.{$field['key']}"] = ['nullable', 'string', 'max:500'];
+            }
+        }
+
+        return $rules;
     }
 
     /**
