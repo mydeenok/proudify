@@ -109,7 +109,7 @@
 
             <div class="mt-xl flex justify-between items-center">
                 <button type="button" wire:click="backToTemplate" class="btn-secondary">Back</button>
-                <button type="button" wire:click="upload" wire:loading.attr="disabled" class="btn-primary">
+                <button type="button" wire:click="continueToMapping" wire:loading.attr="disabled" class="btn-primary">
                     Continue to Mapping
                     <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </button>

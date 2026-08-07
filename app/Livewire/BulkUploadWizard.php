@@ -100,7 +100,16 @@ class BulkUploadWizard extends Component
         $this->resetErrorBag();
     }
 
-    public function upload(BulkUploadWizardService $wizard): void
+    /**
+     * Deliberately not named `upload` - that name collides with Livewire's
+     * own reserved $wire.upload() client-side file-upload function (used
+     * internally by WithFileUploads/wire:model="file"). A component action
+     * named exactly `upload` gets intercepted by that magic method instead
+     * of being called as a normal server action, which crashes with no
+     * file argument the moment wire:click="upload" fires - see the
+     * "Continue to Mapping" button in bulk-upload-wizard.blade.php.
+     */
+    public function continueToMapping(BulkUploadWizardService $wizard): void
     {
         $this->validate([
             'templateId' => ['required', 'integer', 'exists:templates,id'],

@@ -18,23 +18,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Browsershot (PDF rendering)
+    | Canvas Render (Chrome-free)
     |--------------------------------------------------------------------------
     |
-    | By default Browsershot launches a brand-new headless Chrome process
-    | per PDF - that alone measured ~1-3s of pure launch overhead on this
-    | machine, before any actual rendering starts. Setting these env vars
-    | points Browsershot at an already-running Chrome instead (started with
-    | --remote-debugging-port matching CERTIFICATE_CHROME_PORT), which
-    | measured a consistent 30-60% reduction in render time. Left unset,
-    | CertificateRenderService falls back to the normal per-request launch -
-    | this is opt-in, not required, so a dev machine without a persistent
-    | Chrome process running still works exactly as before.
+    | Certificate PDFs are painted by CertificateCanvasRenderService via
+    | Node + @napi-rs/canvas (Skia). No headless Chrome / Puppeteer /
+    | Browsershot and no Ubuntu Chromium system libraries are required.
+    | Templates must be Visual Builder canvas_json designs — legacy HTML
+    | templates need migration before they can issue.
     |
     */
 
-    'chrome_remote_host' => env('CERTIFICATE_CHROME_HOST'),
-    'chrome_remote_port' => env('CERTIFICATE_CHROME_PORT', 9222),
+    'canvas_render_timeout' => env('CERTIFICATE_CANVAS_RENDER_TIMEOUT', 30),
 
     /*
     |--------------------------------------------------------------------------

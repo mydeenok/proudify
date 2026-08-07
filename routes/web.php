@@ -64,6 +64,12 @@ Route::middleware(['auth', 'approved'])->group(function () {
     Route::post('/certificates/preview/render', [CertificateController::class, 'previewRender'])
         ->middleware('throttle:60,1')
         ->name('certificates.preview.render');
+    Route::post('/certificates/drafts', [CertificateController::class, 'saveDraft'])
+        ->middleware('throttle:60,1')
+        ->name('certificates.drafts.save');
+    Route::delete('/certificates/drafts', [CertificateController::class, 'destroyDraft'])
+        ->middleware('throttle:30,1')
+        ->name('certificates.drafts.destroy');
     Route::post('/certificates', [CertificateController::class, 'store'])
         ->middleware('throttle:20,1')
         ->name('certificates.store');

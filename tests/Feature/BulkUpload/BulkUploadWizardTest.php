@@ -124,7 +124,7 @@ class BulkUploadWizardTest extends TestCase
             ->call('selectTemplate', $template->id)
             ->assertSet('step', 'upload')
             ->set('file', $file)
-            ->call('upload')
+            ->call('continueToMapping')
             ->assertSet('step', 'map')
             ->set('mapping', self::MAPPING)
             ->call('saveMapping')

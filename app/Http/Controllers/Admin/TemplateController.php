@@ -27,6 +27,10 @@ class TemplateController extends Controller
 
         $template = Template::create([
             ...$validated,
+            // Always blank at create — design happens in the Visual Builder.
+            // An empty html_content keeps canvas_json free of background_html
+            // so the Chrome-free canvas render driver can handle it.
+            'html_content' => '',
             'created_by' => $request->user()->id,
         ]);
 
@@ -34,7 +38,12 @@ class TemplateController extends Controller
             $template->update(['thumbnail_path' => $this->storeThumbnail($request, $template)]);
         }
 
-        return redirect()->route('admin.templates.index')->with('status', "\"{$template->name}\" was created.");
+        // Drop straight into the Visual Builder — basic details are already
+        // captured; designing (or leaving HTML blank for the Chrome-free
+        // path) is the next step every admin takes after create.
+        return redirect()
+            ->route('admin.templates.builder', $template)
+            ->with('status', "\"{$template->name}\" was created — design it below.");
     }
 
     public function edit(Template $template): View
@@ -72,6 +81,38 @@ class TemplateController extends Controller
     }
 
     /**
+     * Canva-style "start from a template": clone the design document
+     * (canvas_json) into a new inactive row and drop the admin into the
+     * builder. Skips background_html so the clone stays Chrome-free-
+     * renderable even if the source was a legacy HTML import.
+     */
+    public function duplicate(Template $template): RedirectResponse
+    {
+        $canvasJson = $template->canvas_json;
+
+        if (is_array($canvasJson)) {
+            unset($canvasJson['background_html']);
+        }
+
+        $clone = Template::create([
+            'name' => $template->name.' (Copy)',
+            'category' => $template->category,
+            'html_content' => '',
+            'canvas_json' => $canvasJson,
+            'custom_field_schema' => $template->custom_field_schema,
+            'page_format' => $template->page_format,
+            'orientation' => $template->orientation,
+            'is_active' => false,
+            'is_exclusive' => $template->is_exclusive,
+            'created_by' => request()->user()->id,
+        ]);
+
+        return redirect()
+            ->route('admin.templates.builder', $clone)
+            ->with('status', "Duplicated \"{$template->name}\" — edit the copy below.");
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validated(Request $request, ?Template $template = null): array
@@ -79,7 +120,6 @@ class TemplateController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'category' => ['nullable', 'string', 'max:50'],
-            'html_content' => ['required', 'string'],
             'page_format' => ['required', 'string', 'in:a4,letter'],
             'orientation' => ['required', 'string', 'in:landscape,portrait'],
             'is_active' => ['sometimes', 'boolean'],

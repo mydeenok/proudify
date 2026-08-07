@@ -19,9 +19,21 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "@fontsource/carlito": "^5.3.0",
+        "@fontsource/cinzel": "^5.3.0",
+        "@fontsource/cormorant-garamond": "^5.3.0",
+        "@fontsource/dancing-script": "^5.3.0",
+        "@fontsource/great-vibes": "^5.3.0",
         "@fontsource/inter": "^5.2.8",
+        "@fontsource/lora": "^5.3.0",
+        "@fontsource/montserrat": "^5.3.0",
+        "@fontsource/noto-sans": "^5.3.0",
+        "@fontsource/noto-sans-tamil": "^5.3.0",
+        "@fontsource/pacifico": "^5.3.0",
+        "@fontsource/playfair-display": "^5.3.0",
+        "@napi-rs/canvas": "^1.0.3",
         "fabric": "^6.9.1",
         "material-symbols": "^0.45.5",
-        "puppeteer": "^23.11.1"
+        "wawoff2": "^2.0.1"
     }
 }

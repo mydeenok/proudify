@@ -71,7 +71,11 @@
                 />
             </div>
             <div class="flex-1 bg-surface-container-low rounded-lg border border-outline-variant overflow-hidden shadow-inner min-h-[500px]">
-                <iframe id="preview-frame" title="Certificate preview" class="w-full h-full border-0" srcdoc="{{ $initialHtml }}"></iframe>
+                @if (($previewMode ?? 'html') === 'canvas')
+                    <img id="preview-image" title="Certificate preview" alt="Certificate preview" class="w-full h-full object-contain border-0" src="{{ $initialPreviewDataUri }}">
+                @else
+                    <iframe id="preview-frame" title="Certificate preview" class="w-full h-full border-0" srcdoc="{{ $initialHtml }}"></iframe>
+                @endif
             </div>
         </div>
     </div>
@@ -80,15 +84,17 @@
         (function () {
             const form = document.getElementById('preview-form');
             const frame = document.getElementById('preview-frame');
+            const image = document.getElementById('preview-image');
             const loading = document.getElementById('preview-loading');
             let debounceTimer = null;
+            let previewMode = @js($previewMode ?? 'html');
+            let previousBlobUrl = null;
 
-            // Resolves once the iframe has actually finished loading AND its
-            // document's fonts are ready - not just once the HTML has
-            // parsed. A srcdoc iframe already in the initial page markup may
-            // have finished loading by the time this runs (no `load` event
-            // left to catch), so readyState is checked first.
             function waitForFrameFontsReady() {
+                if (! frame) {
+                    return Promise.resolve();
+                }
+
                 const settle = (doc) => (doc?.fonts?.ready ? doc.fonts.ready.catch(() => {}) : Promise.resolve());
 
                 if (frame.contentDocument?.readyState === 'complete') {
@@ -100,6 +106,21 @@
                 });
             }
 
+            function waitForImageReady(img) {
+                if (! img) {
+                    return Promise.resolve();
+                }
+
+                if (img.complete && img.naturalWidth > 0) {
+                    return Promise.resolve();
+                }
+
+                return new Promise((resolve) => {
+                    img.addEventListener('load', () => resolve(), { once: true });
+                    img.addEventListener('error', () => resolve(), { once: true });
+                });
+            }
+
             async function rerender() {
                 loading.style.display = 'flex';
 
@@ -108,27 +129,39 @@
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            Accept: 'text/html',
+                            Accept: 'image/png, text/html',
                         },
                         body: new FormData(form),
                     });
 
-                    if (response.ok) {
+                    if (! response.ok) {
+                        return;
+                    }
+
+                    const mode = response.headers.get('X-Preview-Mode') || previewMode;
+
+                    if (mode === 'canvas' && image) {
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        image.src = url;
+                        await waitForImageReady(image);
+                        if (previousBlobUrl) {
+                            URL.revokeObjectURL(previousBlobUrl);
+                        }
+                        previousBlobUrl = url;
+                        previewMode = 'canvas';
+                    } else if (frame) {
                         frame.srcdoc = await response.text();
                         await waitForFrameFontsReady();
+                        previewMode = 'html';
                     }
                 } finally {
                     loading.style.display = 'none';
                 }
             }
 
-            // The initial iframe content is server-rendered (real signature/
-            // logo already baked in), but the template's own fonts still
-            // need to finish loading before the design is genuinely done -
-            // show the indicator until that settles instead of assuming the
-            // first paint is instant.
             loading.style.display = 'flex';
-            waitForFrameFontsReady().then(() => {
+            (previewMode === 'canvas' ? waitForImageReady(image) : waitForFrameFontsReady()).then(() => {
                 loading.style.display = 'none';
             });
 

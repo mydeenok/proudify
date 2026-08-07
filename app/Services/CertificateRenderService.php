@@ -11,18 +11,20 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Imagick;
 use RuntimeException;
-use Spatie\Browsershot\Browsershot;
 use Throwable;
 
 /**
  * Fills a template's placeholder tokens with a certificate's real data and
- * renders the result to PDF. Page format/orientation come from the
- * template itself (see Bug 7 in the reference-app audit, where these were
- * hard-coded regardless of the template's actual design).
+ * renders the result to PDF via the Chrome-free canvas painter
+ * (CertificateCanvasRenderService + Node/@napi-rs/canvas). Page format /
+ * orientation come from the template itself.
  */
 class CertificateRenderService
 {
-    public function __construct(private readonly QrCodeService $qrCodeService) {}
+    public function __construct(
+        private readonly QrCodeService $qrCodeService,
+        private readonly CertificateCanvasRenderService $canvasRenderService,
+    ) {}
 
     public function renderHtml(Certificate $certificate): string
     {
@@ -80,6 +82,38 @@ class CertificateRenderService
             $this->fillPreviewTokens($template, $issuer, $formData),
             $template,
         );
+    }
+
+    /**
+     * Single entry point for every pre-issuance Live Preview surface.
+     * Canvas-compatible templates paint with the same Node/Skia engine as
+     * the issued PDF. Legacy HTML-only templates still get an HTML preview
+     * (browser paints it — no headless Chrome), but they cannot be issued
+     * until migrated into the Visual Builder.
+     *
+     * @param  array{title?: ?string, recipient_name?: ?string, description?: ?string, date_of_issue?: ?string, date_of_expiry?: ?string, custom_fields?: array<string, string>}  $formData
+     * @return array{mode: 'canvas'|'html', contentType: string, body: string}
+     */
+    public function renderPreview(Template $template, User $issuer, array $formData): array
+    {
+        if ($this->canvasRenderService->supportsTemplate($template)) {
+            return [
+                'mode' => 'canvas',
+                'contentType' => 'image/png',
+                'body' => $this->canvasRenderService->renderPreviewPng(
+                    $template,
+                    $issuer,
+                    $formData,
+                    $this->qrCodeService,
+                ),
+            ];
+        }
+
+        return [
+            'mode' => 'html',
+            'contentType' => 'text/html; charset=UTF-8',
+            'body' => $this->renderPreviewHtml($template, $issuer, $formData),
+        ];
     }
 
     /**
@@ -187,10 +221,9 @@ class CertificateRenderService
     /**
      * Corner emptiness is a property of a template's own design, not of any
      * one certificate's data, so it's computed once and cached on the
-     * template row - every certificate issued from it afterward just reads
-     * this instantly instead of re-rendering and re-analyzing a screenshot
-     * on every single issuance (which would undo the work that made
-     * issuance synchronous in the first place).
+     * template row. Pure canvas templates use element geometry (no Chrome).
+     * Legacy HTML-only templates default to bottom-left — screenshot-based
+     * detection required headless Chrome and is gone.
      */
     private function resolveWatermarkCorner(Template $template): string
     {
@@ -198,115 +231,36 @@ class CertificateRenderService
             return $template->watermark_corner;
         }
 
-        $corner = $this->detectEmptiestCorner($template) ?? 'bottom-left';
+        $canvasJson = $template->canvas_json;
+        $isPureCanvas = is_array($canvasJson)
+            && ! empty($canvasJson['elements'])
+            && ($canvasJson['background_html'] ?? null) === null;
 
-        // Cached even on fallback, so a template that can't be analyzed
-        // (missing creator, Chrome/Imagick hiccup) doesn't pay that cost
-        // again on its next certificate.
+        $corner = $isPureCanvas
+            ? $this->canvasRenderService->detectEmptiestCornerFromCanvas($template)
+            : 'bottom-left';
+
         $template->forceFill(['watermark_corner' => $corner])->save();
 
         return $corner;
     }
 
     /**
-     * Renders one sample of the template (no watermark - see
-     * fillPreviewTokens) to an image and measures pixel variance in each of
-     * the four corners; the corner with the least variance is the one with
-     * the least visual content (background only), which is what "empty"
-     * means here. Returns null on any failure so the caller can fall back
-     * to a sane default rather than breaking issuance over a cosmetic
-     * feature.
+     * Issues a PDF using the Chrome-free canvas painter only. Templates
+     * that still carry imported background_html / aren't builder-authored
+     * fail loudly — migrate them with `php artisan certificates:migrate-templates-to-canvas`
+     * (or redesign in the Visual Builder) rather than silently needing Chromium.
      */
-    private function detectEmptiestCorner(Template $template): ?string
-    {
-        try {
-            $issuer = $template->createdBy ?? User::query()->first();
-
-            if (! $issuer) {
-                return null;
-            }
-
-            $html = $this->fillPreviewTokens($template, $issuer, ['date_of_issue' => now()->toDateString()]);
-
-            [$width, $height] = $template->orientation === 'portrait' ? [707, 1000] : [1000, 707];
-
-            $browsershot = Browsershot::html($html)->windowSize($width, $height)->waitUntilNetworkIdle();
-
-            if ($host = config('certificates.chrome_remote_host')) {
-                $browsershot->setRemoteInstance($host, (int) config('certificates.chrome_remote_port'));
-            }
-
-            $imagick = new Imagick;
-            $imagick->readImageBlob($browsershot->screenshot());
-
-            $imageWidth = $imagick->getImageWidth();
-            $imageHeight = $imagick->getImageHeight();
-            $cornerWidth = max(1, (int) ($imageWidth * 0.18));
-            $cornerHeight = max(1, (int) ($imageHeight * 0.12));
-
-            $regions = [
-                'top-left' => [0, 0],
-                'top-right' => [$imageWidth - $cornerWidth, 0],
-                'bottom-left' => [0, $imageHeight - $cornerHeight],
-                'bottom-right' => [$imageWidth - $cornerWidth, $imageHeight - $cornerHeight],
-            ];
-
-            $variance = [];
-
-            foreach ($regions as $corner => [$x, $y]) {
-                $region = clone $imagick;
-                $region->cropImage($cornerWidth, $cornerHeight, $x, $y);
-                $stats = $region->getImageChannelStatistics();
-                $variance[$corner] = $stats[Imagick::CHANNEL_RED]['standardDeviation'] ?? PHP_FLOAT_MAX;
-                $region->clear();
-            }
-
-            $imagick->clear();
-            asort($variance);
-
-            return array_key_first($variance);
-        } catch (Throwable $exception) {
-            Log::warning('Watermark corner detection failed, defaulting to bottom-left.', [
-                'template_id' => $template->id,
-                'exception' => $exception->getMessage(),
-            ]);
-
-            return null;
-        }
-    }
-
     public function renderPdf(Certificate $certificate): string
     {
-        $html = $this->renderHtml($certificate);
-
-        $relativePath = "certificates/{$certificate->user_id}/{$certificate->uuid}.pdf";
-        $absolutePath = Storage::disk('local')->path($relativePath);
-
-        Storage::disk('local')->makeDirectory(dirname($relativePath));
-
-        $browsershot = Browsershot::html($html)
-            ->format($certificate->template->page_format)
-            ->margins(0, 0, 0, 0)
-            ->showBackground()
-            ->waitUntilNetworkIdle();
-
-        $certificate->template->orientation === 'landscape'
-            ? $browsershot->landscape()
-            : $browsershot->portrait();
-
-        // Opt-in: if CERTIFICATE_CHROME_HOST is set, connect to an
-        // already-running Chrome instead of paying the ~1-3s launch cost on
-        // every single PDF. Deliberately no throwOnRemoteConnectionError()
-        // here - if that instance isn't reachable, Browsershot silently
-        // falls back to launching its own (see bin/browser.cjs), so a dev
-        // machine without a persistent Chrome running is unaffected.
-        if ($host = config('certificates.chrome_remote_host')) {
-            $browsershot->setRemoteInstance($host, (int) config('certificates.chrome_remote_port'));
+        if (! $this->canvasRenderService->supports($certificate)) {
+            throw new RuntimeException(
+                "Certificate {$certificate->uuid}'s template (id {$certificate->template_id}) isn't canvas-compatible - it has hand-written HTML/background_html the Chrome-free renderer can't reproduce. ".
+                'Convert it in the Visual Builder (leave "HTML content" blank when creating, or design it fresh) so it renders without Chrome.'
+            );
         }
 
-        $browsershot->savePdf($absolutePath);
-
-        return $relativePath;
+        return $this->canvasRenderService->renderPdf($certificate);
     }
 
     /**
@@ -320,17 +274,13 @@ class CertificateRenderService
      * Failure is caught and recorded rather than thrown - the certificate
      * row already exists either way, and image_generation_status =
      * 'failed' is what surfaces the existing regenerate/retry action
-     * instead of turning a transient Chrome/Imagick hiccup into a hard
+     * instead of turning a transient Node/Imagick hiccup into a hard
      * error on the whole request.
      *
-     * This now runs inside the web request instead of a queue worker
-     * (whose process-level timeout was previously configured separately),
-     * so it explicitly raises the PHP execution time limit here - a
-     * production PHP-FPM default (often 30s) could otherwise truncate a
-     * slow cold-Chrome render before the local CLI dev server (unlimited
-     * by default) would ever reveal the problem. Reuses job_timeout so
-     * there's one config value for "how long we tolerate generation
-     * taking", not two drifting apart.
+     * This runs inside the web request (not a queue worker), so it raises
+     * the PHP execution time limit here — a production PHP-FPM default
+     * (often 30s) could otherwise truncate a slow canvas paint. Reuses
+     * job_timeout so there's one config value for generation timeout.
      */
     public function generateAssetsSynchronously(Certificate $certificate): void
     {
