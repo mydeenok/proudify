@@ -171,4 +171,48 @@ class CertificateBuilderTest extends TestCase
         $this->assertStringContainsString('src="data:', $html);
         $this->assertStringNotContainsString('{course_logo}', $html);
     }
+
+    public function test_an_admin_can_duplicate_a_template_into_the_builder(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create([
+            'name' => 'Original Design',
+            'html_content' => '<p>legacy</p>',
+            'canvas_json' => [
+                'elements' => [
+                    ['id' => 'el_1', 'type' => 'text', 'content' => 'Hello', 'xPercent' => 10, 'yPercent' => 10, 'widthPercent' => 40, 'heightPercent' => 10, 'z' => 0],
+                ],
+                'background_html' => '<html>should not copy</html>',
+                'background' => ['type' => 'color', 'value' => '#fff8f0'],
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.templates.duplicate', $template));
+
+        $clone = Template::where('name', 'Original Design (Copy)')->firstOrFail();
+        $response->assertRedirect(route('admin.templates.builder', $clone));
+
+        $this->assertSame('', $clone->html_content);
+        $this->assertFalse($clone->is_active);
+        $this->assertArrayNotHasKey('background_html', $clone->canvas_json);
+        $this->assertSame('#fff8f0', $clone->canvas_json['background']['value']);
+        $this->assertCount(1, $clone->canvas_json['elements']);
+    }
+
+    public function test_an_admin_can_upload_a_builder_asset(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create();
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $file = \Illuminate\Http\UploadedFile::fake()->image('badge.png', 200, 200);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.templates.builder.asset', $template), ['file' => $file])
+            ->assertOk()
+            ->assertJsonStructure(['path', 'url'])
+            ->assertJsonPath('url', fn ($url) => str_starts_with($url, '/storage/'));
+
+        $this->assertNotEmpty(\Illuminate\Support\Facades\Storage::disk('public')->allFiles("templates/{$template->id}/assets"));
+    }
 }
