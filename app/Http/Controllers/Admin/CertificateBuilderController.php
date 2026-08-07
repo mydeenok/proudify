@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Template;
+use App\Services\CertificateRenderService;
 use App\Services\LayoutToHtmlRenderer;
 use App\Services\TemplateBackgroundImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -35,6 +37,7 @@ class CertificateBuilderController extends Controller
             'template' => $template,
             'backgroundDetectionHtml' => $backgroundHtml,
             'needsAutoDetect' => $needsAutoDetect,
+            'pageBackground' => is_array($template->canvas_json) ? ($template->canvas_json['background'] ?? null) : null,
         ]);
     }
 
@@ -66,14 +69,57 @@ class CertificateBuilderController extends Controller
 
         $canvasJson = $this->withBackgroundHtml($template, $validated['canvas_json'], $importService);
 
+        // Invalidate any stale corner so the geometry / Browsershot
+        // detector re-runs against the newly published layout.
         $template->update([
             'canvas_json' => $canvasJson,
             'html_content' => $renderer->render($canvasJson),
             'custom_field_schema' => $this->deriveCustomFieldSchema($canvasJson, $importService),
+            'watermark_corner' => null,
             'is_active' => true,
         ]);
 
         return response()->json(['status' => 'published', 'redirect' => route('admin.templates.index')]);
+    }
+
+    /**
+     * Upload a decorative asset used as a page background or unbound
+     * image element. Stored on the public disk so the builder can preview
+     * it via Storage::url without a second authenticated download route.
+     */
+    public function uploadAsset(Request $request, Template $template): JsonResponse
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'image', 'max:5120'],
+        ]);
+
+        $path = $validated['file']->store("templates/{$template->id}/assets", 'public');
+
+        // Relative URL so the builder works regardless of APP_URL port
+        // (e.g. localhost:3000 vs APP_URL=http://localhost).
+        return response()->json([
+            'path' => $path,
+            'url' => '/storage/'.$path,
+        ]);
+    }
+
+    /**
+     * Builder "Preview sample" — same painter as create Live Preview /
+     * issued PDF, with placeholder form values so admins can check layout
+     * without leaving the editor.
+     */
+    public function previewSample(Request $request, Template $template, CertificateRenderService $renderService): Response
+    {
+        $preview = $renderService->renderPreview($template, $request->user(), [
+            'title' => 'Sample Certificate Title',
+            'recipient_name' => 'Alex Recipient',
+            'description' => 'For outstanding achievement in the sample program.',
+            'date_of_issue' => now()->toDateString(),
+        ]);
+
+        return response($preview['body'])
+            ->header('Content-Type', $preview['contentType'])
+            ->header('X-Preview-Mode', $preview['mode']);
     }
 
     /**
