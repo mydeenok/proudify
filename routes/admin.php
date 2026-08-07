@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminAnalyticsController;
 use App\Http\Controllers\Admin\AdminCertificateController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\BulkUploadController;
+use App\Http\Controllers\Admin\CertificateAssetController;
 use App\Http\Controllers\Admin\CertificateBuilderController;
 use App\Http\Controllers\Admin\ContactRequestController;
 use App\Http\Controllers\Admin\SubscriptionPlanController;
@@ -36,6 +37,13 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('templates/{template}/builder', [CertificateBuilderController::class, 'edit'])->name('templates.builder');
     Route::post('templates/{template}/builder/save', [CertificateBuilderController::class, 'save'])->name('templates.builder.save');
     Route::post('templates/{template}/builder/publish', [CertificateBuilderController::class, 'publish'])->name('templates.builder.publish');
+    Route::post('templates/{template}/builder/asset', [CertificateBuilderController::class, 'uploadAsset'])->name('templates.builder.asset');
+    Route::post('templates/{template}/builder/preview-sample', [CertificateBuilderController::class, 'previewSample'])
+        ->name('templates.builder.preview-sample');
+    Route::post('templates/{template}/duplicate', [TemplateController::class, 'duplicate'])->name('templates.duplicate');
+
+    Route::get('certificate-assets', [CertificateAssetController::class, 'index'])->name('certificate-assets.index');
+    Route::post('certificate-assets', [CertificateAssetController::class, 'store'])->name('certificate-assets.store');
 
     Route::get('bulk-upload', [BulkUploadController::class, 'create'])->name('bulk-upload.create');
     Route::post('bulk-upload', [BulkUploadController::class, 'store'])
