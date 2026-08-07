@@ -2,7 +2,7 @@
     <div class="mb-xl">
         <h2 class="font-headline-xl text-headline-xl text-on-surface mb-xs">New Template</h2>
         <p class="font-body-md text-body-md text-on-surface-variant">
-            Author raw HTML for now — the visual builder lands in Milestone 4.
+            Enter the basics — you’ll design the certificate in the Visual Builder next.
         </p>
     </div>
 
