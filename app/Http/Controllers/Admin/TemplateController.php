@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Template;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -25,14 +26,23 @@ class TemplateController extends Controller
     {
         $validated = $this->validated($request);
 
-        $template = Template::create([
-            ...$validated,
-            // Always blank at create — design happens in the Visual Builder.
-            // An empty html_content keeps canvas_json free of background_html
-            // so the Chrome-free canvas render driver can handle it.
-            'html_content' => '',
-            'created_by' => $request->user()->id,
-        ]);
+        try {
+            $template = Template::create([
+                ...$validated,
+                // Always blank at create — design happens in the Visual Builder.
+                // An empty html_content keeps canvas_json free of background_html
+                // so the Chrome-free canvas render driver can handle it.
+                'html_content' => '',
+                'created_by' => $request->user()->id,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            // The slug generator's uniqueness check and this insert aren't
+            // atomic, so two admins submitting the same name at once can
+            // still collide here even after it passed uniqueSlugFor().
+            return back()
+                ->withInput()
+                ->withErrors(['name' => 'A template with this name already exists. Try a different name.']);
+        }
 
         if ($request->hasFile('thumbnail')) {
             $template->update(['thumbnail_path' => $this->storeThumbnail($request, $template)]);
@@ -94,18 +104,22 @@ class TemplateController extends Controller
             unset($canvasJson['background_html']);
         }
 
-        $clone = Template::create([
-            'name' => $template->name.' (Copy)',
-            'category' => $template->category,
-            'html_content' => '',
-            'canvas_json' => $canvasJson,
-            'custom_field_schema' => $template->custom_field_schema,
-            'page_format' => $template->page_format,
-            'orientation' => $template->orientation,
-            'is_active' => false,
-            'is_exclusive' => $template->is_exclusive,
-            'created_by' => request()->user()->id,
-        ]);
+        try {
+            $clone = Template::create([
+                'name' => $template->name.' (Copy)',
+                'category' => $template->category,
+                'html_content' => '',
+                'canvas_json' => $canvasJson,
+                'custom_field_schema' => $template->custom_field_schema,
+                'page_format' => $template->page_format,
+                'orientation' => $template->orientation,
+                'is_active' => false,
+                'is_exclusive' => $template->is_exclusive,
+                'created_by' => request()->user()->id,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            return back()->with('status', "A \"{$template->name} (Copy)\" template already exists — rename it before duplicating again.");
+        }
 
         return redirect()
             ->route('admin.templates.builder', $clone)
