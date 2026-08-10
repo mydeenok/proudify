@@ -26,7 +26,14 @@ Route::middleware('guest')->group(function () {
     Route::post('login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:20,1');
 
-    Route::get('proud-admin', [AuthenticatedSessionController::class, 'adminCreate'])->name('admin.login');
+    Route::get('product-admin', [AuthenticatedSessionController::class, 'adminCreate'])->name('admin.login');
+    Route::post('product-admin', [AuthenticatedSessionController::class, 'adminStore'])
+        ->middleware('throttle:20,1');
+
+    // Legacy URLs — same handlers (older bookmarks / cached forms)
+    Route::get('proud-admin', fn () => redirect()->route('admin.login'));
+    Route::post('proud-admin', [AuthenticatedSessionController::class, 'adminStore'])
+        ->middleware('throttle:20,1');
     Route::post('adm/login', [AuthenticatedSessionController::class, 'adminStore'])
         ->middleware('throttle:20,1');
 
