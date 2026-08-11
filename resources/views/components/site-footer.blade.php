@@ -7,7 +7,6 @@
         <div class="flex flex-col gap-sm">
             <h4 class="font-label-sm text-label-sm font-bold text-on-surface mb-xs uppercase tracking-wider">Product</h4>
             <a href="{{ url('/#features') }}" class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors">Features</a>
-            <a href="{{ route('pricing') }}" wire:navigate class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors">Pricing</a>
             <a href="{{ url('/#templates') }}" class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors">Templates</a>
         </div>
         <div class="flex flex-col gap-sm">

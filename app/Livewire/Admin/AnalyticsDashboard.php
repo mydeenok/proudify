@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\Certificate;
+use App\Models\CertificateOrder;
 use App\Models\CertificateVerification;
 use App\Models\EmailLog;
 use App\Models\Template;
@@ -41,20 +42,35 @@ class AnalyticsDashboard extends Component
         $days = $this->period - 1;
         $periodStart = now()->subDays($days)->startOfDay();
 
-        $revenueByCurrency = UserSubscription::where('payment_status', 'completed')
+        $subscriptionRevenueByCurrency = UserSubscription::where('payment_status', 'completed')
             ->where('created_at', '>=', $periodStart)
             ->select('currency', DB::raw('SUM(amount_paid) as total'))
             ->groupBy('currency')
             ->pluck('total', 'currency');
 
-        $usersByPlan = UserSubscription::query()
-            ->where('user_subscriptions.is_active', true)
-            ->where('user_subscriptions.payment_status', 'completed')
-            ->join('subscriptions', 'subscriptions.id', '=', 'user_subscriptions.subscription_id')
-            ->select('subscriptions.name', DB::raw('COUNT(*) as total'))
-            ->groupBy('subscriptions.name')
-            ->orderByDesc('total')
-            ->pluck('total', 'subscriptions.name');
+        // Pay-per-certificate revenue - filtered by paid_at (when the
+        // payment actually cleared), not created_at, since a
+        // CertificateOrder row exists from the moment checkout starts,
+        // well before (or instead of) payment succeeding.
+        $certificateOrderRevenue = (float) CertificateOrder::where('status', 'paid')
+            ->where('paid_at', '>=', $periodStart)
+            ->sum('total_amount');
+
+        $revenueByCurrency = $subscriptionRevenueByCurrency->put(
+            'INR',
+            (float) ($subscriptionRevenueByCurrency['INR'] ?? 0) + $certificateOrderRevenue,
+        );
+
+        // Replaces the old "Users by Plan" breakdown - subscriptions no
+        // longer gate anyone, so grouping by plan would show one
+        // meaningless "Free: 100%" circle for nearly every tenant now.
+        // Single vs bulk issuance is the equivalent pay-per-certificate
+        // question: where is issuance actually coming from.
+        $issuanceByType = Certificate::where('certificates.created_at', '>=', $periodStart)
+            ->select(DB::raw('(certificate_batch_id IS NOT NULL) as is_bulk'), DB::raw('COUNT(*) as total'))
+            ->groupBy('is_bulk')
+            ->get()
+            ->mapWithKeys(fn ($row) => [($row->is_bulk ? 'Bulk' : 'Single') => (int) $row->total]);
 
         $issuanceByDay = Certificate::where('created_at', '>=', $periodStart)
             ->select(DB::raw('DATE(created_at) as day'), DB::raw('COUNT(*) as total'))
@@ -72,11 +88,16 @@ class AnalyticsDashboard extends Component
             $start = now()->subMonths($monthsAgo)->startOfMonth();
             $end = now()->subMonths($monthsAgo)->endOfMonth();
             $label = $start->format('M');
-            $total = UserSubscription::where('payment_status', 'completed')
+
+            $subscriptionTotal = UserSubscription::where('payment_status', 'completed')
                 ->whereBetween('created_at', [$start, $end])
                 ->sum('amount_paid');
 
-            return [$label => (float) $total];
+            $certificateOrderTotal = CertificateOrder::where('status', 'paid')
+                ->whereBetween('paid_at', [$start, $end])
+                ->sum('total_amount');
+
+            return [$label => (float) $subscriptionTotal + (float) $certificateOrderTotal];
         });
 
         $verificationCounts = CertificateVerification::where('created_at', '>=', $periodStart)
@@ -127,7 +148,7 @@ class AnalyticsDashboard extends Component
             ->limit(5)
             ->get();
 
-        [$donutSegments, $donutGradient, $totalPlanUsers] = $this->donut($usersByPlan);
+        [$donutSegments, $donutGradient, $totalIssuance] = $this->donut($issuanceByType);
 
         $maxRevenue = max($revenueSeries->max() ?: 1, 1);
         $revenuePoints = $revenueSeries->values();
@@ -137,10 +158,10 @@ class AnalyticsDashboard extends Component
             'period' => $this->period,
             'periodLabel' => "Last {$this->period} Days",
             'revenueByCurrency' => $revenueByCurrency,
-            'usersByPlan' => $usersByPlan,
+            'issuanceByType' => $issuanceByType,
             'donutSegments' => $donutSegments,
             'donutGradient' => $donutGradient,
-            'totalPlanUsers' => $totalPlanUsers,
+            'totalIssuance' => $totalIssuance,
             'issuanceSeries' => $issuanceSeries,
             'revenueSeries' => $revenueSeries,
             'maxRevenue' => $maxRevenue,
@@ -160,25 +181,25 @@ class AnalyticsDashboard extends Component
     }
 
     /**
-     * @param  Collection<string, int|string>  $usersByPlan
+     * @param  Collection<string, int|string>  $segments
      * @return array{0: list<array<string, mixed>>, 1: string, 2: int}
      */
-    private function donut(Collection $usersByPlan): array
+    private function donut(Collection $segments): array
     {
-        $planColors = ['#d92727', '#151c27', '#dce2f3', '#cea62c', '#5e5e62'];
-        $totalPlanUsers = (int) $usersByPlan->sum();
+        $colors = ['#d92727', '#151c27', '#dce2f3', '#cea62c', '#5e5e62'];
+        $total = (int) $segments->sum();
         $donutSegments = [];
         $offset = 0;
         $colorIndex = 0;
 
-        foreach ($usersByPlan as $planName => $count) {
-            if ($totalPlanUsers === 0) {
+        foreach ($segments as $name => $count) {
+            if ($total === 0) {
                 break;
             }
-            $pct = ($count / $totalPlanUsers) * 100;
-            $color = $planColors[$colorIndex % count($planColors)];
+            $pct = ($count / $total) * 100;
+            $color = $colors[$colorIndex % count($colors)];
             $donutSegments[] = [
-                'name' => $planName,
+                'name' => $name,
                 'count' => $count,
                 'percent' => round($pct),
                 'color' => $color,
@@ -189,10 +210,10 @@ class AnalyticsDashboard extends Component
             $colorIndex++;
         }
 
-        $donutGradient = $totalPlanUsers > 0
+        $donutGradient = $total > 0
             ? 'conic-gradient('.collect($donutSegments)->map(fn ($s) => "{$s['color']} {$s['from']}% {$s['to']}%")->implode(', ').')'
             : 'conic-gradient(#dce2f3 0% 100%)';
 
-        return [$donutSegments, $donutGradient, $totalPlanUsers];
+        return [$donutSegments, $donutGradient, $total];
     }
 }

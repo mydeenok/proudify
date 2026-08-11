@@ -2,27 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
+/**
+ * Subscriptions are retired - billing moved to pay-per-certificate (see
+ * CertificateOrder). The view/route stay in place (not deleted) for a
+ * tenant with real historical subscription data to fall back to later if
+ * needed; for now this just redirects instead of showing a page about a
+ * billing model that no longer applies going forward.
+ */
 class UserSubscriptionController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
-        $subscriptions = $request->user()
-            ->userSubscriptions()
-            ->with('subscription')
-            ->latest('start_date')
-            ->paginate(10);
-
-        $active = $request->user()
-            ->userSubscriptions()
-            ->where('is_active', true)
-            ->where('payment_status', 'completed')
-            ->where('end_date', '>', now())
-            ->latest('start_date')
-            ->first();
-
-        return view('user-subscriptions.index', compact('subscriptions', 'active'));
+        return redirect()->route('dashboard')->with('status', 'Subscriptions have been replaced by pay-per-certificate billing.');
     }
 }

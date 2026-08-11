@@ -2,32 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Subscription;
-use App\Models\UserSubscription;
-use App\Services\GeoLocationService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
+/**
+ * Subscription-tier pricing is retired - certificates are pay-per-unit now
+ * (see CertificatePricingService / BillingSetting), priced at checkout
+ * rather than on a dedicated plans page. The view/route stay in place
+ * (not deleted) in case a real pricing page is wanted here later; for now
+ * this just sends visitors somewhere useful instead of showing stale
+ * subscription tiers.
+ */
 class PricingController extends Controller
 {
-    public function index(Request $request, GeoLocationService $geo): View
+    public function index(Request $request): RedirectResponse
     {
-        $plans = Subscription::active()
-            ->orderByDesc('is_default_free_plan')
-            ->orderBy('sort_order')
-            ->get();
+        $destination = $request->user() ? route('dashboard') : url('/');
 
-        $currency = $geo->currencyFor($request->ip());
-
-        $activeSubscription = $request->user()
-            ? UserSubscription::where('user_id', $request->user()->id)
-                ->where('is_active', true)
-                ->where('payment_status', 'completed')
-                ->where('end_date', '>', now())
-                ->latest('start_date')
-                ->first()
-            : null;
-
-        return view('pricing', compact('plans', 'currency', 'activeSubscription'));
+        return redirect($destination)->with('status', 'Certificates are billed per unit now - pricing shows up at checkout when you create or issue one.');
     }
 }

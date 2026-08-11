@@ -4,8 +4,11 @@ namespace Tests\Feature\Admin;
 
 use App\Livewire\Admin\AnalyticsDashboard;
 use App\Models\Certificate;
+use App\Models\CertificateBatch;
+use App\Models\CertificateOrder;
 use App\Models\CertificateVerification;
 use App\Models\Subscription;
+use App\Models\Template;
 use App\Models\User;
 use App\Models\UserSubscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -55,6 +58,74 @@ class AdminAnalyticsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('75%');
+    }
+
+    /**
+     * Revenue now comes from two sources - legacy subscriptions and the
+     * pay-per-certificate CertificateOrder model - and they must be added
+     * together in the same INR bucket, not shown as two separate figures.
+     */
+    public function test_analytics_reflects_pay_per_certificate_revenue_alongside_subscriptions(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+        $plan = Subscription::factory()->create();
+
+        UserSubscription::factory()->for($plan)->create(['payment_status' => 'completed', 'amount_paid' => 100, 'currency' => 'INR']);
+
+        CertificateOrder::create([
+            'user_id' => $user->id,
+            'type' => 'single',
+            'template_id' => $template->id,
+            'quantity' => 1,
+            'unit_price' => 20,
+            'subtotal' => 20,
+            'total_amount' => 20,
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        // Pending/failed orders must not be counted as revenue.
+        CertificateOrder::create([
+            'user_id' => $user->id,
+            'type' => 'single',
+            'template_id' => $template->id,
+            'quantity' => 1,
+            'unit_price' => 20,
+            'subtotal' => 20,
+            'total_amount' => 20,
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.analytics.index'));
+
+        $response->assertOk();
+        $response->assertSee('₹120.00', false);
+    }
+
+    /**
+     * Replaces the old "Users by Plan" donut - subscriptions no longer
+     * gate anyone, so grouping by plan would show a meaningless single
+     * segment for nearly every tenant now.
+     */
+    public function test_analytics_shows_issuance_by_type_instead_of_users_by_plan(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+        $batch = CertificateBatch::factory()->create(['user_id' => $user->id, 'template_id' => $template->id]);
+
+        Certificate::factory()->count(3)->create(['user_id' => $user->id, 'certificate_batch_id' => null]);
+        Certificate::factory()->count(2)->create(['user_id' => $user->id, 'certificate_batch_id' => $batch->id]);
+
+        $response = $this->actingAs($admin)->get(route('admin.analytics.index'));
+
+        $response->assertOk();
+        $response->assertSee('Issuance by Type');
+        $response->assertDontSee('Users by Plan');
+        $response->assertSee('Single');
+        $response->assertSee('Bulk');
     }
 
     public function test_period_filter_hides_older_metrics(): void

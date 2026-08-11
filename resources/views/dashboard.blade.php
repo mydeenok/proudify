@@ -6,10 +6,6 @@ $statusStyles = [
     'expired' => ['dot' => 'bg-gray-400', 'bg' => 'bg-surface/90', 'text' => 'text-on-surface-variant', 'label' => 'Expired'],
     'revoked' => ['dot' => 'bg-red-500', 'bg' => 'bg-red-500/10', 'text' => 'text-red-600', 'label' => 'Revoked'],
 ];
-$quotaRemaining = $activeSubscription?->remainingCertificates() ?? 0;
-$quotaLimit = $activeSubscription?->certificates_limit ?? 0;
-$quotaPercent = $quotaLimit > 0 ? round((($quotaLimit - $quotaRemaining) / $quotaLimit) * 100) : 0;
-$strokeOffset = 100 - $quotaPercent;
 @endphp
 
 <x-layouts.user-shell title="Dashboard">
@@ -42,54 +38,35 @@ $strokeOffset = 100 - $quotaPercent;
             </div>
         </div>
 
-        <div class="bg-surface border border-outline-variant rounded-xl p-lg shadow-[0px_4px_12px_rgba(0,0,0,0.02)] flex flex-row items-center justify-between h-[160px] hover:shadow-[0px_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
-            <div class="flex flex-col h-full justify-between">
-                <div class="flex items-center gap-sm text-on-surface-variant">
-                    <span class="material-symbols-outlined text-[20px]">data_usage</span>
-                    <h2 class="font-label-md text-label-md">Quota Remaining</h2>
-                </div>
-                <div>
-                    <div class="font-headline-lg text-headline-lg text-on-background font-bold">{{ number_format($quotaRemaining) }}</div>
-                    <div class="font-body-sm text-body-sm text-secondary mt-1">
-                        @if ($activeSubscription)
-                            out of {{ number_format($quotaLimit) }} credits
-                        @else
-                            No active plan
-                        @endif
-                    </div>
+        <div class="bg-surface border border-outline-variant rounded-xl p-lg shadow-[0px_4px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[160px] hover:shadow-[0px_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
+            <div class="flex items-center gap-sm text-on-surface-variant">
+                <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+                <h2 class="font-label-md text-label-md">This Month</h2>
+            </div>
+            <div>
+                <div class="font-headline-xl text-headline-xl text-on-background font-black tracking-tight">{{ number_format($certificatesThisMonth) }}</div>
+                <div class="font-body-sm text-body-sm text-secondary mt-1">
+                    certificates &middot; ₹{{ number_format($spentThisMonth, 2) }} spent
                 </div>
             </div>
-            @if ($activeSubscription)
-                <div class="relative w-20 h-20 flex items-center justify-center">
-                    <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                        <circle class="stroke-surface-container-high" cx="18" cy="18" fill="none" r="16" stroke-width="3"></circle>
-                        <circle class="stroke-primary-container" cx="18" cy="18" fill="none" r="16" stroke-dasharray="100" stroke-dashoffset="{{ $strokeOffset }}" stroke-linecap="round" stroke-width="3"></circle>
-                    </svg>
-                    <div class="absolute inset-0 flex items-center justify-center font-label-md text-label-md font-bold text-on-surface">{{ $quotaPercent }}%</div>
-                </div>
-            @endif
         </div>
 
         <div class="bg-surface border border-outline-variant rounded-xl p-lg shadow-[0px_4px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[160px] relative overflow-hidden hover:shadow-[0px_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
             <div class="absolute -right-4 -top-4 w-24 h-24 bg-surface-container-high rounded-full opacity-50"></div>
             <div class="relative z-10 flex items-center gap-sm text-on-surface-variant">
-                <span class="material-symbols-outlined text-[20px]">stars</span>
-                <h2 class="font-label-md text-label-md">Current Plan</h2>
+                <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+                <h2 class="font-label-md text-label-md">Last Order</h2>
             </div>
             <div class="relative z-10">
-                @if ($activeSubscription)
-                    <div class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-primary-container/10 text-primary-container font-label-sm text-label-sm border border-primary-container/20 mb-2">
-                        {{ $activeSubscription->subscription->name }}
-                    </div>
-                    <div class="font-headline-md text-headline-md text-on-background capitalize">{{ $activeSubscription->billing_period }} billing</div>
+                @if ($lastOrder)
+                    <div class="font-headline-md text-headline-md text-on-background">₹{{ number_format($lastOrder->total_amount, 2) }}</div>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                        {{ $lastOrder->quantity }} {{ Str::plural('certificate', $lastOrder->quantity) }} &middot; {{ $lastOrder->paid_at->diffForHumans() }}
+                    </p>
                 @else
-                    <div class="font-headline-md text-headline-md text-on-background">Free tier</div>
-                    <p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Upgrade for more capacity</p>
+                    <div class="font-headline-md text-headline-md text-on-background">No orders yet</div>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Issue your first certificate to see it here.</p>
                 @endif
-                <a href="{{ route('subscriptions.index') }}" class="font-label-sm text-label-sm text-secondary hover:text-primary transition-colors flex items-center gap-1 mt-1 group">
-                    Manage subscription
-                    <span class="material-symbols-outlined text-[14px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
-                </a>
             </div>
         </div>
     </section>
