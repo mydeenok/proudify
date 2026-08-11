@@ -2,7 +2,6 @@
 
 namespace App\Actions\Certificates;
 
-use App\Exceptions\SubscriptionQuotaExceededException;
 use App\Jobs\Certificates\ConvertCertificatePdfToImageJob;
 use App\Jobs\Certificates\GenerateCertificatePdfJob;
 use App\Jobs\Certificates\GenerateCertificateQrCodeJob;
@@ -12,7 +11,6 @@ use App\Models\CertificateBatch;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\CertificateRenderService;
-use App\Services\SubscriptionQuotaService;
 use App\Services\VerificationService;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -24,9 +22,10 @@ use Throwable;
  * form/canvas page and every bulk-upload chunk job so the
  * create-then-generate-then-email flow exists exactly once.
  *
- * Admins issue without limit (matches the reference app); tenant users are
- * gated by subscription quota, checked and consumed atomically so
- * concurrent bulk-upload chunks can't overshoot the limit.
+ * Issuance is pay-per-certificate now: the caller is responsible for
+ * confirming payment (see CertificateOrder/CertificateOrderCompletionService)
+ * before this action ever runs. This action itself no longer gates or
+ * meters anything - it just creates the certificate.
  *
  * Bulk upload (hundreds of rows) stays on the queue - it always has -
  * because generating that many PDFs synchronously in one web request isn't
@@ -37,14 +36,11 @@ use Throwable;
  * mode entirely: a certificate that gets created is a certificate that's
  * either done or has failed=logged, never stuck in limbo waiting on a
  * worker process nobody started.
- *
- * @throws SubscriptionQuotaExceededException
  */
 class IssueSingleCertificateAction
 {
     public function __construct(
         private readonly VerificationService $verificationService,
-        private readonly SubscriptionQuotaService $quotaService,
         private readonly CertificateRenderService $renderService,
     ) {}
 
@@ -53,14 +49,6 @@ class IssueSingleCertificateAction
      */
     public function execute(User $issuer, Template $template, array $data, ?CertificateBatch $batch = null): Certificate
     {
-        $userSubscription = null;
-
-        if (! $issuer->isAdmin()) {
-            $userSubscription = $this->quotaService->resolveUsableSubscription($issuer);
-            $isNewRecipient = $this->quotaService->isNewRecipient($issuer, $data['recipient_email']);
-            $this->quotaService->consume($userSubscription, $isNewRecipient);
-        }
-
         $uuid = (string) Str::uuid();
         $code = $this->verificationService->generateCode();
         $signature = $this->verificationService->sign($uuid, $code, $data['date_of_issue']);
@@ -72,7 +60,7 @@ class IssueSingleCertificateAction
             'user_id' => $issuer->id,
             'template_id' => $template->id,
             'certificate_batch_id' => $batch?->id,
-            'user_subscription_id' => $userSubscription?->id,
+            'user_subscription_id' => null,
             'title' => $data['title'],
             'recipient_name' => $data['recipient_name'],
             'recipient_email' => $data['recipient_email'],

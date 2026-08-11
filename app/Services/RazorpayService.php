@@ -37,6 +37,24 @@ class RazorpayService
         ];
     }
 
+    /**
+     * Amount is always computed server-side from the order's own
+     * total_amount, in paise, matching createOrder()'s convention.
+     *
+     * @return array{id: string, status: string}
+     */
+    public function refund(string $paymentId, float $amount): array
+    {
+        $refund = $this->api->payment->fetch($paymentId)->refund([
+            'amount' => (int) round($amount * 100),
+        ]);
+
+        return [
+            'id' => $refund->id,
+            'status' => $refund->status,
+        ];
+    }
+
     public function verifySignature(string $orderId, string $paymentId, string $signature): bool
     {
         try {

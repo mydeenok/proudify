@@ -3,9 +3,7 @@
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsApproved;
 use App\Http\Middleware\RedirectAdminFromTenantRoutes;
-use App\Jobs\Subscriptions\ExpireStaleSubscriptionsJob;
-use App\Jobs\Subscriptions\NotifyExpiringSubscriptionsJob;
-use App\Jobs\Subscriptions\ResetUsageCountersJob;
+use App\Jobs\Billing\ExpireStaleCertificateOrdersJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -39,9 +37,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
-        $schedule->job(new ResetUsageCountersJob)->hourly();
-        $schedule->job(new NotifyExpiringSubscriptionsJob)->daily();
-        $schedule->job(new ExpireStaleSubscriptionsJob)->daily();
+        // Subscription-based billing is retired (see CertificateOrder /
+        // CertificatePricingService for the pay-per-certificate model that
+        // replaced it) - the job classes stay in the codebase for now
+        // (see app/Jobs/Subscriptions) but are no longer scheduled.
+        $schedule->job(new ExpireStaleCertificateOrdersJob)->hourly();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

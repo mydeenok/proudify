@@ -3,12 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Certificates\IssueSingleCertificateAction;
-use App\Exceptions\SubscriptionQuotaExceededException;
 use App\Jobs\Certificates\ConvertCertificatePdfToImageJob;
 use App\Jobs\Certificates\GenerateCertificatePdfJob;
 use App\Models\Certificate;
 use App\Models\CertificateDraft;
+use App\Models\CertificateOrder;
 use App\Models\Template;
+use App\Services\CertificatePricingService;
 use App\Services\CertificateRenderService;
 use App\Services\TemplateBackgroundImportService;
 use Illuminate\Http\JsonResponse;
@@ -255,28 +256,61 @@ class CertificateController extends Controller
         return $rules;
     }
 
-    public function store(Request $request, IssueSingleCertificateAction $action): RedirectResponse
+    /**
+     * Admins issue directly and for free, matching the existing precedent
+     * in IssueSingleCertificateAction (admins were already exempt from the
+     * old subscription quota). Everyone else pays first: this creates a
+     * pending CertificateOrder and hands off to checkout instead of
+     * issuing immediately - see CertificateCheckoutController for the
+     * payment flow and CertificateOrderCompletionService for what actually
+     * runs IssueSingleCertificateAction once payment is confirmed.
+     */
+    public function store(Request $request, IssueSingleCertificateAction $action, CertificatePricingService $pricing): RedirectResponse
     {
         $template = Template::active()->findOrFail($request->integer('template_id'));
 
         $validated = $request->validate($this->storeValidationRules($template));
         $validated['custom_image_fields'] = $this->storeUploadedCustomImages($request, $template);
 
-        try {
+        if ($request->user()->isAdmin()) {
             $certificate = $action->execute($request->user(), $template, $validated);
-        } catch (SubscriptionQuotaExceededException $exception) {
-            return redirect()->route('pricing')->with('quota_message', $exception->getMessage());
+
+            $this->forgetDraft($request, $template);
+
+            return redirect()
+                ->route('certificates.show', $certificate)
+                ->with('status', 'Certificate issued.')
+                ->with('issued_template_id', $template->id);
         }
 
+        $price = $pricing->calculate(1);
+
+        $order = CertificateOrder::create([
+            'user_id' => $request->user()->id,
+            'type' => 'single',
+            'template_id' => $template->id,
+            'payload' => $validated,
+            'quantity' => 1,
+            'unit_price' => $price['unit_price'],
+            'subtotal' => $price['subtotal'],
+            'discount_percent' => $price['discount_percent'],
+            'discount_amount' => $price['discount_amount'],
+            'total_amount' => $price['total'],
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        $this->forgetDraft($request, $template);
+
+        return redirect()->route('certificates.checkout.show', $order);
+    }
+
+    private function forgetDraft(Request $request, Template $template): void
+    {
         CertificateDraft::query()
             ->where('user_id', $request->user()->id)
             ->where('template_id', $template->id)
             ->delete();
-
-        return redirect()
-            ->route('certificates.show', $certificate)
-            ->with('status', 'Certificate issued.')
-            ->with('issued_template_id', $template->id);
     }
 
     public function saveDraft(Request $request): JsonResponse

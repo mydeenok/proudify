@@ -3,9 +3,11 @@
 use App\Http\Controllers\Admin\AdminAnalyticsController;
 use App\Http\Controllers\Admin\AdminCertificateController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\BillingSettingController;
 use App\Http\Controllers\Admin\BulkUploadController;
 use App\Http\Controllers\Admin\CertificateAssetController;
 use App\Http\Controllers\Admin\CertificateBuilderController;
+use App\Http\Controllers\Admin\CertificateOrderController;
 use App\Http\Controllers\Admin\ContactRequestController;
 use App\Http\Controllers\Admin\SubscriptionPlanController;
 use App\Http\Controllers\Admin\TemplateController;
@@ -59,6 +61,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::patch('user-subscriptions/{userSubscription}', [UserSubscriptionController::class, 'update'])->name('user-subscriptions.update');
     Route::post('user-subscriptions/{userSubscription}/extend', [UserSubscriptionController::class, 'extend'])->name('user-subscriptions.extend');
     Route::patch('user-subscriptions/{userSubscription}/cancel', [UserSubscriptionController::class, 'cancel'])->name('user-subscriptions.cancel');
+
+    Route::get('billing-settings', [BillingSettingController::class, 'edit'])->name('billing-settings.edit');
+    Route::patch('billing-settings', [BillingSettingController::class, 'update'])->name('billing-settings.update');
+
+    Route::get('certificate-orders', [CertificateOrderController::class, 'index'])->name('certificate-orders.index');
+    Route::post('certificate-orders/{certificateOrder}/refund', [CertificateOrderController::class, 'refund'])->name('certificate-orders.refund');
 
     Route::get('contact-requests', [ContactRequestController::class, 'index'])->name('contact-requests.index');
     Route::get('contact-requests/{contactRequest}', [ContactRequestController::class, 'show'])->name('contact-requests.show');

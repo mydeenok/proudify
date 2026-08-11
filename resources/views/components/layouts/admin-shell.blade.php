@@ -33,16 +33,20 @@
             <x-admin-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" icon="group">
                 Users
             </x-admin-nav-link>
-            @if (Route::has('admin.subscriptions.index'))
-                <x-admin-nav-link :href="route('admin.subscriptions.index')" :active="request()->routeIs('admin.subscriptions.*')" icon="payments">
-                    Subscription Plans
+            @if (Route::has('admin.billing-settings.edit'))
+                <x-admin-nav-link :href="route('admin.billing-settings.edit')" :active="request()->routeIs('admin.billing-settings.*')" icon="payments">
+                    Billing Settings
                 </x-admin-nav-link>
             @endif
-            @if (Route::has('admin.user-subscriptions.index'))
-                <x-admin-nav-link :href="route('admin.user-subscriptions.index')" :active="request()->routeIs('admin.user-subscriptions.*')" icon="receipt_long">
-                    User Subscriptions
+            @if (Route::has('admin.certificate-orders.index'))
+                <x-admin-nav-link :href="route('admin.certificate-orders.index')" :active="request()->routeIs('admin.certificate-orders.*')" icon="receipt_long">
+                    Certificate Orders
                 </x-admin-nav-link>
             @endif
+            {{-- Subscription Plans / User Subscriptions nav hidden for now
+                 — billing moved to pay-per-certificate (see Billing
+                 Settings / Certificate Orders above); these routes still
+                 work, just unlinked. --}}
             @if (Route::has('admin.analytics.index'))
                 <x-admin-nav-link :href="route('admin.analytics.index')" :active="request()->routeIs('admin.analytics.*')" icon="monitoring">
                     Analytics

@@ -3,10 +3,12 @@
 namespace App\Livewire;
 
 use App\Models\CertificateBatch;
+use App\Models\CertificateOrder;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\BulkUploadIngestService;
 use App\Services\BulkUploadWizardService;
+use App\Services\CertificatePricingService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -195,25 +197,63 @@ class BulkUploadWizard extends Component
         $this->resetErrorBag();
     }
 
-    public function confirm(BulkUploadWizardService $wizard)
+    /**
+     * Admins issue for free and directly, unchanged. Everyone else pays
+     * first: this creates a pending CertificateOrder and sends them to
+     * checkout instead of dispatching immediately - see
+     * BulkUploadCheckoutController for the payment flow and
+     * CertificateOrderCompletionService for what actually calls
+     * BulkUploadWizardService::confirm() once payment is confirmed.
+     */
+    public function confirm(BulkUploadWizardService $wizard, CertificatePricingService $pricing)
     {
         $batch = $this->batch();
         $this->authorizeBatch($batch);
 
-        try {
-            $wizard->confirm($batch);
-        } catch (ValidationException $exception) {
-            $this->setErrorBag($exception->errors());
+        if (auth()->user()->isAdmin()) {
+            try {
+                $wizard->confirm($batch);
+            } catch (ValidationException $exception) {
+                $this->setErrorBag($exception->errors());
+
+                return;
+            }
+
+            return $this->redirect(route('bulk-upload.status', $batch));
+        }
+
+        $pendingCount = $batch->items()->where('status', 'pending')->count();
+
+        if ($pendingCount === 0) {
+            $this->setErrorBag(['batch' => ['No rows are ready to issue. Check your file and column mapping.']]);
 
             return;
         }
 
-        return $this->redirect(route('bulk-upload.status', $batch));
+        $price = $pricing->calculate($pendingCount);
+
+        $order = CertificateOrder::create([
+            'user_id' => $batch->user_id,
+            'type' => 'bulk',
+            'template_id' => $batch->template_id,
+            'certificate_batch_id' => $batch->id,
+            'quantity' => $pendingCount,
+            'unit_price' => $price['unit_price'],
+            'subtotal' => $price['subtotal'],
+            'discount_percent' => $price['discount_percent'],
+            'discount_amount' => $price['discount_amount'],
+            'total_amount' => $price['total'],
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        return $this->redirect(route('bulk-upload.checkout.show', $order));
     }
 
-    public function render(): View
+    public function render(CertificatePricingService $pricing): View
     {
         $batch = $this->batchId ? CertificateBatch::with('template')->find($this->batchId) : null;
+        $pendingCount = $batch?->items()->where('status', 'pending')->count() ?? 0;
 
         return view('livewire.bulk-upload-wizard', [
             'templates' => $this->step === 'template' || $this->step === 'setup'
@@ -226,9 +266,10 @@ class BulkUploadWizard extends Component
                 ? Template::find($this->templateId)
                 : $batch?->template,
             'batch' => $batch,
-            'pendingCount' => $batch?->items()->where('status', 'pending')->count() ?? 0,
+            'pendingCount' => $pendingCount,
             'skippedCount' => $batch?->items()->where('status', 'skipped')->count() ?? 0,
             'failedCount' => $batch?->items()->where('status', 'failed')->count() ?? 0,
+            'price' => $this->mode !== 'admin' && $pendingCount > 0 ? $pricing->calculate($pendingCount) : null,
             'stepperCurrent' => match ($this->step) {
                 'template' => 'Select Template',
                 'upload', 'setup' => 'Upload Data',

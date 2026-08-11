@@ -301,6 +301,28 @@
             </dl>
         </div>
 
+        @if ($price)
+            <div class="card-surface p-lg shadow-card-sm mb-lg">
+                <h2 class="font-headline-md text-headline-md text-on-surface mb-md">Price</h2>
+                <dl class="space-y-2">
+                    <div class="flex justify-between py-2 border-b border-outline-variant/50">
+                        <dt class="font-body-md text-body-md text-on-surface-variant">{{ number_format($price['unit_price'], 2) }} &times; {{ $price['quantity'] }}</dt>
+                        <dd class="font-label-md text-label-md text-on-surface">₹{{ number_format($price['subtotal'], 2) }}</dd>
+                    </div>
+                    @if ($price['discount_amount'] > 0)
+                        <div class="flex justify-between py-2 border-b border-outline-variant/50 text-emerald-700">
+                            <dt class="font-body-md text-body-md">Bulk discount ({{ number_format($price['discount_percent'], 0) }}%)</dt>
+                            <dd class="font-label-md text-label-md">&minus;₹{{ number_format($price['discount_amount'], 2) }}</dd>
+                        </div>
+                    @endif
+                    <div class="flex justify-between py-2">
+                        <dt class="font-label-md text-label-md text-on-surface font-semibold">Total due</dt>
+                        <dd class="font-headline-md text-headline-md text-on-surface font-bold">₹{{ number_format($price['total'], 2) }}</dd>
+                    </div>
+                </dl>
+            </div>
+        @endif
+
         @if ($pendingCount === 0)
             <div class="bg-error/10 text-error rounded-lg px-md py-sm font-body-sm text-body-sm mb-lg">
                 No rows are ready to issue. Check your file and column mapping.
@@ -317,8 +339,12 @@
                 @disabled($pendingCount === 0)
                 class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                <span class="material-symbols-outlined text-[18px]">rocket_launch</span>
-                Issue {{ $pendingCount }} Certificates
+                <span class="material-symbols-outlined text-[18px]">{{ $price ? 'lock' : 'rocket_launch' }}</span>
+                @if ($price)
+                    Pay ₹{{ number_format($price['total'], 2) }} &amp; Issue {{ $pendingCount }} Certificates
+                @else
+                    Issue {{ $pendingCount }} Certificates
+                @endif
             </button>
         </div>
     @endif
