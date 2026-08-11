@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\UserAgentParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
@@ -22,7 +26,27 @@ class ProfileController extends Controller
     {
         return view('profile.edit', [
             'user' => $request->user(),
+            'apiTokens' => $request->user()->tokens()->latest()->get(),
+            'activeSessions' => $this->activeSessions($request),
         ]);
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function activeSessions(Request $request): Collection
+    {
+        return DB::table('sessions')
+            ->where('user_id', $request->user()->id)
+            ->orderByDesc('last_activity')
+            ->get()
+            ->map(fn ($session) => [
+                'id' => $session->id,
+                'is_current' => $session->id === $request->session()->getId(),
+                'device' => UserAgentParser::label($session->user_agent),
+                'ip_address' => $session->ip_address,
+                'last_active' => Carbon::createFromTimestamp($session->last_activity),
+            ]);
     }
 
     /**
