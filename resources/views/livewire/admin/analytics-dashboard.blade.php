@@ -117,18 +117,18 @@ $maxEmailDay = max(1, $emailSeries->max(fn ($day) => $day['sent'] + $day['failed
             </div>
         </div>
 
-        {{-- Users by Plan donut --}}
+        {{-- Issuance by type donut --}}
         <div class="col-span-12 md:col-span-4 bg-surface border border-outline-variant rounded-xl p-lg shadow-card flex flex-col">
             <div class="mb-xl">
-                <h3 class="font-headline-md text-headline-md text-on-surface">Users by Plan</h3>
-                <p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Distribution across active tiers.</p>
+                <h3 class="font-headline-md text-headline-md text-on-surface">Issuance by Type</h3>
+                <p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Single vs. bulk, {{ strtolower($periodLabel) }}.</p>
             </div>
-            @if ($totalPlanUsers > 0)
+            @if ($totalIssuance > 0)
                 <div class="flex-1 flex items-center justify-center relative">
                     <div class="w-48 h-48 rounded-full relative" style="background: {{ $donutGradient }};">
                         <div class="absolute inset-4 bg-surface rounded-full flex items-center justify-center shadow-inner">
                             <div class="text-center">
-                                <span class="block font-headline-lg text-headline-lg text-on-surface">{{ number_format($totalPlanUsers) }}</span>
+                                <span class="block font-headline-lg text-headline-lg text-on-surface">{{ number_format($totalIssuance) }}</span>
                                 <span class="block font-label-sm text-label-sm text-on-surface-variant">Total</span>
                             </div>
                         </div>
@@ -146,7 +146,7 @@ $maxEmailDay = max(1, $emailSeries->max(fn ($day) => $day['sent'] + $day['failed
                     @endforeach
                 </div>
             @else
-                <p class="font-body-md text-body-md text-on-surface-variant">No active subscribers yet.</p>
+                <p class="font-body-md text-body-md text-on-surface-variant">No certificates issued in this period yet.</p>
             @endif
         </div>
 

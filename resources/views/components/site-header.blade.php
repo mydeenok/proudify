@@ -38,21 +38,10 @@
                 <a href="{{ url('/#templates') }}" class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors pb-sm">Templates</a>
             @endauth
 
-            @if (Route::has('pricing'))
-                <x-nav-link :href="route('pricing')" :active="request()->routeIs('pricing')">
-                    Pricing
-                </x-nav-link>
-            @endif
-
-            @auth
-                @unless (auth()->user()->isAdmin())
-                    @if (Route::has('subscriptions.index'))
-                        <x-nav-link :href="route('subscriptions.index')" :active="request()->routeIs('subscriptions.*')">
-                            Subscription
-                        </x-nav-link>
-                    @endif
-                @endunless
-            @endauth
+            {{-- Pricing/Subscription nav hidden for now — billing moved to
+                 pay-per-certificate (see CertificatePricingService); these
+                 routes still work, just unlinked, since subscriptions are
+                 no longer part of the issuance flow. --}}
 
             @if (Route::has('contact'))
                 <x-nav-link :href="route('contact')" :active="request()->routeIs('contact')">
