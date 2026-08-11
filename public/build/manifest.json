@@ -996,7 +996,7 @@
     "src": "node_modules/material-symbols/material-symbols-outlined.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BaBxBdGX.css",
+    "file": "assets/app-BS2LiwM1.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -1011,7 +1011,7 @@
     "isEntry": true
   },
   "resources/js/certificate-builder.js": {
-    "file": "assets/certificate-builder-XButoN_K.js",
+    "file": "assets/certificate-builder-DDl07fbZ.js",
     "name": "certificate-builder",
     "src": "resources/js/certificate-builder.js",
     "isEntry": true,

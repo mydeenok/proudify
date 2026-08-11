@@ -18,24 +18,6 @@
         #tool-panel {
             transition: width 180ms cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .rail-tab {
-            position: relative;
-            transition: color 150ms ease, background-color 150ms ease;
-        }
-        .rail-tab::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 10px;
-            bottom: 10px;
-            width: 3px;
-            border-radius: 0 3px 3px 0;
-            background: transparent;
-            transition: background-color 150ms ease;
-        }
-        .rail-tab.is-active::before {
-            background: #b40012;
-        }
         .element-card, .field-chip, .tool-btn {
             transition: transform 120ms ease, box-shadow 120ms ease, background-color 150ms ease, border-color 150ms ease, color 150ms ease;
         }
@@ -61,57 +43,11 @@
         #canvas-stage {
             transition: transform 150ms ease;
         }
-        .effect-chip {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            min-height: 3.5rem;
-            padding: 0.5rem 0.35rem;
-            border-radius: 0.75rem;
-            border: 1px solid #c4c7c9;
-            background: #fff;
-            color: #41474d;
-            font-size: 0.6875rem;
-            line-height: 1.2;
-            font-weight: 500;
-            letter-spacing: 0.01em;
-            transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
-        }
-        .effect-chip:hover {
-            background: #f2f4f6;
-            border-color: #03757f;
-            color: #03757f;
-        }
-        .effect-chip.bg-primary-fixed\/60,
-        .effect-chip.is-on {
-            background: rgba(180, 0, 18, 0.08);
-            border-color: #b40012;
-            color: #b40012;
-            box-shadow: inset 0 0 0 1px rgba(180, 0, 18, 0.15);
-        }
-        .effect-chip .material-symbols-outlined {
-            font-size: 20px;
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-        }
-        .effect-options {
-            border-radius: 0.75rem;
-            border: 1px solid #e1e3e5;
-            background: #f8f9fa;
-            padding: 0.625rem;
-        }
-        .effect-options label {
-            display: block;
-            font-size: 0.6875rem;
-            color: #6b7278;
-            margin-bottom: 0.25rem;
-        }
     </style>
 </head>
 <body class="bg-[#edf0f4] h-full flex flex-col overflow-hidden text-on-surface font-body-md">
     <header class="bg-white border-b border-outline-variant w-full z-50 shrink-0 h-14 flex items-center px-md gap-md">
-        <a href="{{ route('admin.templates.index') }}" class="w-9 h-9 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-variant transition-colors" title="Back">
+        <a href="{{ route('admin.templates.index') }}" class="w-9 h-9 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-variant transition-colors" title="Back" data-tooltip="Back">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </a>
         <div class="min-w-0 flex-1">
@@ -122,37 +58,37 @@
             </div>
         <span id="builder-status" class="font-body-sm text-body-sm text-on-surface-variant hidden sm:inline opacity-0"></span>
         <div class="flex items-center gap-xs">
-            <button id="undo-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors disabled:opacity-30" title="Undo (Ctrl+Z)" disabled>
+            <button id="undo-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors disabled:opacity-30" title="Undo (Ctrl+Z)" data-tooltip="Undo (Ctrl+Z)" disabled>
                 <span class="material-symbols-outlined text-[20px]">undo</span>
                 </button>
-            <button id="redo-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors disabled:opacity-30" title="Redo (Ctrl+Y)" disabled>
+            <button id="redo-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors disabled:opacity-30" title="Redo (Ctrl+Y)" data-tooltip="Redo (Ctrl+Y)" disabled>
                 <span class="material-symbols-outlined text-[20px]">redo</span>
                 </button>
-            <button id="duplicate-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Duplicate (Ctrl+D)">
+            <button id="duplicate-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Duplicate (Ctrl+D)" data-tooltip="Duplicate (Ctrl+D)">
                 <span class="material-symbols-outlined text-[20px]">content_copy</span>
             </button>
-            <button id="lock-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Lock / unlock selected">
+            <button id="lock-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Lock / unlock selected" data-tooltip="Lock / unlock selected">
                 <span class="material-symbols-outlined text-[20px]">lock</span>
             </button>
             <div class="hidden md:flex items-center gap-0.5 border-l border-outline-variant pl-xs ml-xs">
-                <button type="button" data-object-align="left" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align left"><span class="material-symbols-outlined text-[18px]">align_horizontal_left</span></button>
-                <button type="button" data-object-align="center" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align center"><span class="material-symbols-outlined text-[18px]">align_horizontal_center</span></button>
-                <button type="button" data-object-align="right" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align right"><span class="material-symbols-outlined text-[18px]">align_horizontal_right</span></button>
-                <button type="button" data-object-align="top" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align top"><span class="material-symbols-outlined text-[18px]">align_vertical_top</span></button>
-                <button type="button" data-object-align="middle" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align middle"><span class="material-symbols-outlined text-[18px]">align_vertical_center</span></button>
-                <button type="button" data-object-align="bottom" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align bottom"><span class="material-symbols-outlined text-[18px]">align_vertical_bottom</span></button>
-                <button type="button" data-object-distribute="horizontal" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Distribute horizontally"><span class="material-symbols-outlined text-[18px]">horizontal_distribute</span></button>
-                <button type="button" data-object-distribute="vertical" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Distribute vertically"><span class="material-symbols-outlined text-[18px]">vertical_distribute</span></button>
+                <button type="button" data-object-align="left" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align left" data-tooltip="Align left"><span class="material-symbols-outlined text-[18px]">align_horizontal_left</span></button>
+                <button type="button" data-object-align="center" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align center" data-tooltip="Align center"><span class="material-symbols-outlined text-[18px]">align_horizontal_center</span></button>
+                <button type="button" data-object-align="right" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align right" data-tooltip="Align right"><span class="material-symbols-outlined text-[18px]">align_horizontal_right</span></button>
+                <button type="button" data-object-align="top" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align top" data-tooltip="Align top"><span class="material-symbols-outlined text-[18px]">align_vertical_top</span></button>
+                <button type="button" data-object-align="middle" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align middle" data-tooltip="Align middle"><span class="material-symbols-outlined text-[18px]">align_vertical_center</span></button>
+                <button type="button" data-object-align="bottom" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Align bottom" data-tooltip="Align bottom"><span class="material-symbols-outlined text-[18px]">align_vertical_bottom</span></button>
+                <button type="button" data-object-distribute="horizontal" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Distribute horizontally" data-tooltip="Distribute horizontally"><span class="material-symbols-outlined text-[18px]">horizontal_distribute</span></button>
+                <button type="button" data-object-distribute="vertical" class="object-align-btn w-8 h-8 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg" title="Distribute vertically" data-tooltip="Distribute vertically"><span class="material-symbols-outlined text-[18px]">vertical_distribute</span></button>
             </div>
-            <button id="safe-area-toggle" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Safe area guide">
+            <button id="safe-area-toggle" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Safe area guide" data-tooltip="Safe area guide">
                 <span class="material-symbols-outlined text-[20px]">crop_free</span>
             </button>
-            <button id="preview-sample-btn" type="button" class="h-9 px-md font-label-md text-label-md text-on-surface hover:bg-surface-variant rounded-lg transition-colors hidden sm:inline-flex items-center gap-xs" title="Preview with sample data">
+            <button id="preview-sample-btn" type="button" class="h-9 px-md font-label-md text-label-md text-on-surface hover:bg-surface-variant rounded-lg transition-colors hidden sm:inline-flex items-center gap-xs" title="Preview with sample data" data-tooltip="Preview with sample data">
                 <span class="material-symbols-outlined text-[18px]">visibility</span>
                 Preview
             </button>
             <div class="relative hidden md:block">
-                <button id="shortcuts-help-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Keyboard shortcuts" aria-expanded="false" aria-controls="shortcuts-help-panel">
+                <button id="shortcuts-help-btn" type="button" class="w-9 h-9 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="Keyboard shortcuts" data-tooltip="Keyboard shortcuts" aria-expanded="false" aria-controls="shortcuts-help-panel">
                     <span class="material-symbols-outlined text-[20px]">keyboard</span>
                 </button>
                 <div id="shortcuts-help-panel" class="hidden absolute right-0 top-full mt-xs w-64 bg-white border border-outline-variant rounded-xl shadow-xl p-md z-[80]">
@@ -208,39 +144,39 @@
 
     <main class="flex-1 flex min-h-0 overflow-hidden" id="certificate-builder" data-config='@json($builderConfig)'>
         {{-- Icon rail --}}
-        <aside class="w-20 shrink-0 bg-white border-r border-outline-variant flex flex-col items-center py-md gap-1.5 overflow-hidden z-20">
-            <button type="button" class="rail-tab is-active w-16 py-2.5 flex flex-col items-center gap-1 text-primary bg-primary-fixed/60 rounded-xl" data-panel="text" title="Text">
+        <aside class="w-20 shrink-0 bg-white border-r border-outline-variant flex flex-col items-center py-md gap-0.5 overflow-hidden z-20">
+            <button type="button" class="rail-tab is-active text-primary w-16 py-2.5 flex flex-col items-center gap-1 rounded-lg hover:bg-surface-variant transition-colors" data-panel="text" title="Text" data-tooltip="Text">
                 <span class="material-symbols-outlined text-[21px]" style="font-variation-settings: 'FILL' 1">text_fields</span>
-                <span class="text-[9.5px] font-semibold tracking-tight leading-none">Text</span>
+                <span class="text-[10.5px] font-semibold tracking-tight leading-none">Text</span>
             </button>
-            <button type="button" class="rail-tab w-16 py-2.5 flex flex-col items-center gap-1 text-on-surface-variant hover:bg-surface-variant rounded-xl" data-panel="elements" title="Elements">
+            <button type="button" class="rail-tab text-on-surface-variant w-16 py-2.5 flex flex-col items-center gap-1 rounded-lg hover:bg-surface-variant transition-colors" data-panel="elements" title="Elements" data-tooltip="Elements">
                 <span class="material-symbols-outlined text-[21px]">category</span>
-                <span class="text-[9.5px] font-semibold tracking-tight leading-none">Elements</span>
+                <span class="text-[10.5px] font-semibold tracking-tight leading-none">Elements</span>
             </button>
-            <button type="button" class="rail-tab w-16 py-2.5 flex flex-col items-center gap-1 text-on-surface-variant hover:bg-surface-variant rounded-xl" data-panel="uploads" title="Uploads">
+            <button type="button" class="rail-tab text-on-surface-variant w-16 py-2.5 flex flex-col items-center gap-1 rounded-lg hover:bg-surface-variant transition-colors" data-panel="uploads" title="Uploads" data-tooltip="Uploads">
                 <span class="material-symbols-outlined text-[21px]">upload</span>
-                <span class="text-[9.5px] font-semibold tracking-tight leading-none">Uploads</span>
+                <span class="text-[10.5px] font-semibold tracking-tight leading-none">Uploads</span>
             </button>
-            <button type="button" class="rail-tab w-16 py-2.5 flex flex-col items-center gap-1 text-on-surface-variant hover:bg-surface-variant rounded-xl" data-panel="background" title="Background">
+            <button type="button" class="rail-tab text-on-surface-variant w-16 py-2.5 flex flex-col items-center gap-1 rounded-lg hover:bg-surface-variant transition-colors" data-panel="background" title="Background" data-tooltip="Background">
                 <span class="material-symbols-outlined text-[21px]">wallpaper</span>
-                <span class="text-[9.5px] font-semibold tracking-tight leading-none">Background</span>
+                <span class="text-[10.5px] font-semibold tracking-tight leading-none">Background</span>
             </button>
-            <button type="button" class="rail-tab w-16 py-2.5 flex flex-col items-center gap-1 text-on-surface-variant hover:bg-surface-variant rounded-xl" data-panel="fields" title="Fields">
+            <button type="button" class="rail-tab text-on-surface-variant w-16 py-2.5 flex flex-col items-center gap-1 rounded-lg hover:bg-surface-variant transition-colors" data-panel="fields" title="Fields" data-tooltip="Fields">
                 <span class="material-symbols-outlined text-[21px]">dynamic_form</span>
-                <span class="text-[9.5px] font-semibold tracking-tight leading-none">Fields</span>
+                <span class="text-[10.5px] font-semibold tracking-tight leading-none">Fields</span>
             </button>
-            <button type="button" class="rail-tab w-16 py-2.5 flex flex-col items-center gap-1 text-on-surface-variant hover:bg-surface-variant rounded-xl" data-panel="starters" title="Starters">
+            <button type="button" class="rail-tab text-on-surface-variant w-16 py-2.5 flex flex-col items-center gap-1 rounded-lg hover:bg-surface-variant transition-colors" data-panel="starters" title="Starters" data-tooltip="Starters">
                 <span class="material-symbols-outlined text-[21px]">auto_awesome_mosaic</span>
-                <span class="text-[9.5px] font-semibold tracking-tight leading-none">Starters</span>
+                <span class="text-[10.5px] font-semibold tracking-tight leading-none">Starters</span>
             </button>
-            <button type="button" class="rail-tab w-16 py-2.5 flex flex-col items-center gap-1 text-on-surface-variant hover:bg-surface-variant rounded-xl" data-panel="library" title="Library">
+            <button type="button" class="rail-tab text-on-surface-variant w-16 py-2.5 flex flex-col items-center gap-1 rounded-lg hover:bg-surface-variant transition-colors" data-panel="library" title="Library" data-tooltip="Library">
                 <span class="material-symbols-outlined text-[21px]">photo_library</span>
-                <span class="text-[9.5px] font-semibold tracking-tight leading-none">Library</span>
+                <span class="text-[10.5px] font-semibold tracking-tight leading-none">Library</span>
             </button>
             <div class="flex-1"></div>
-            <button id="tool-delete" type="button" class="w-16 py-2.5 flex flex-col items-center gap-1 text-error hover:bg-error/10 rounded-xl transition-colors" title="Delete selected">
+            <button id="tool-delete" type="button" class="w-16 py-2.5 flex flex-col items-center gap-1 text-error hover:bg-error/10 rounded-lg transition-colors" title="Delete selected" data-tooltip="Delete selected">
                 <span class="material-symbols-outlined text-[21px]">delete</span>
-                <span class="text-[9.5px] font-semibold tracking-tight leading-none">Delete</span>
+                <span class="text-[10.5px] font-semibold tracking-tight leading-none">Delete</span>
             </button>
         </aside>
 
@@ -300,7 +236,7 @@
                                 ];
                             @endphp
                             @foreach ($basicShapes as [$kind, $icon, $label])
-                                <button id="tool-add-{{ $kind }}" type="button" data-shape-kind="{{ $kind }}" class="element-card shape-tool-btn aspect-square flex items-center justify-center rounded-xl border border-outline-variant hover:border-primary hover:shadow-sm bg-surface-variant/30" title="{{ $label }}">
+                                <button id="tool-add-{{ $kind }}" type="button" data-shape-kind="{{ $kind }}" class="element-card shape-tool-btn aspect-square flex items-center justify-center rounded-xl border border-outline-variant hover:border-primary hover:shadow-sm bg-surface-variant/30" title="{{ $label }}" data-tooltip="{{ $label }}">
                                     <span class="material-symbols-outlined text-[26px] text-on-surface-variant">{{ $icon }}</span>
                                 </button>
                             @endforeach
@@ -318,7 +254,7 @@
                                 ];
                             @endphp
                             @foreach ($vectorShapes as [$kind, $icon, $label])
-                                <button id="tool-add-{{ $kind }}" type="button" data-shape-kind="{{ $kind }}" class="element-card shape-tool-btn aspect-square flex items-center justify-center rounded-xl border border-outline-variant hover:border-primary hover:shadow-sm bg-surface-variant/30" title="{{ $label }}">
+                                <button id="tool-add-{{ $kind }}" type="button" data-shape-kind="{{ $kind }}" class="element-card shape-tool-btn aspect-square flex items-center justify-center rounded-xl border border-outline-variant hover:border-primary hover:shadow-sm bg-surface-variant/30" title="{{ $label }}" data-tooltip="{{ $label }}">
                                     <span class="material-symbols-outlined text-[26px] text-on-surface-variant">{{ $icon }}</span>
                                 </button>
                             @endforeach
@@ -350,11 +286,11 @@
                         <h3 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wide mb-sm">Background color</h3>
                         <div class="grid grid-cols-6 gap-xs mb-sm">
                             @foreach (['#ffffff', '#fff8f0', '#f5f5f4', '#eef2ff', '#fef2f2', '#0f172a'] as $swatch)
-                                <button type="button" class="bg-swatch aspect-square rounded-lg border border-outline-variant hover:scale-105 transition-transform" style="background-color: {{ $swatch }}" data-color="{{ $swatch }}" title="{{ $swatch }}"></button>
+                                <button type="button" class="bg-swatch aspect-square rounded-lg border border-outline-variant hover:scale-105 transition-transform" style="background-color: {{ $swatch }}" data-color="{{ $swatch }}" title="{{ $swatch }}" data-tooltip="{{ $swatch }}"></button>
                             @endforeach
                         </div>
                         <div class="flex items-center gap-sm">
-                            <input id="bg-color" type="color" value="{{ is_array($pageBackground) && ($pageBackground['type'] ?? '') === 'color' ? ($pageBackground['value'] ?? '#ffffff') : '#ffffff' }}" class="h-10 w-12 rounded-lg border border-outline-variant cursor-pointer shrink-0" title="Custom color">
+                            <input id="bg-color" type="color" value="{{ is_array($pageBackground) && ($pageBackground['type'] ?? '') === 'color' ? ($pageBackground['value'] ?? '#ffffff') : '#ffffff' }}" class="h-10 w-12 rounded-lg border border-outline-variant cursor-pointer shrink-0" title="Custom color" data-tooltip="Custom color">
                             <button id="bg-clear-btn" type="button" class="flex-1 h-10 font-label-sm text-label-sm text-on-surface-variant hover:text-error border border-outline-variant rounded-lg hover:bg-error/5 transition-colors">
                                 Reset to white
                             </button>
@@ -444,7 +380,7 @@
                 @if ($backgroundDetectionHtml)
                     <iframe
                         id="builder-background-frame"
-                        title="Template background"
+                        title="Template background" data-tooltip="Template background"
                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; pointer-events: none;"
                         srcdoc="{{ $backgroundDetectionHtml }}"
                     ></iframe>
@@ -493,10 +429,10 @@
                         <p class="font-body-sm text-body-sm text-on-surface-variant truncate">With placeholder recipient data</p>
                     </div>
                     <div class="flex items-center gap-xs shrink-0">
-                        <button type="button" id="sample-preview-refresh" class="w-9 h-9 rounded-lg hover:bg-surface-variant flex items-center justify-center text-on-surface-variant" title="Refresh preview">
+                        <button type="button" id="sample-preview-refresh" class="w-9 h-9 rounded-lg hover:bg-surface-variant flex items-center justify-center text-on-surface-variant" title="Refresh preview" data-tooltip="Refresh preview">
                             <span class="material-symbols-outlined text-[20px]">refresh</span>
                         </button>
-                        <button type="button" id="sample-preview-close" class="w-9 h-9 rounded-lg hover:bg-surface-variant flex items-center justify-center text-on-surface-variant" title="Close">
+                        <button type="button" id="sample-preview-close" class="w-9 h-9 rounded-lg hover:bg-surface-variant flex items-center justify-center text-on-surface-variant" title="Close" data-tooltip="Close">
                             <span class="material-symbols-outlined text-[20px]">close</span>
                         </button>
                     </div>
@@ -509,7 +445,7 @@
                     <p id="sample-preview-error" class="hidden font-body-sm text-body-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-sm"></p>
                     <div class="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
                         <img id="sample-preview-image" alt="Sample certificate preview" class="hidden w-full h-auto">
-                        <iframe id="sample-preview-frame" title="Sample preview" class="hidden w-full min-h-[480px] border-0 bg-white"></iframe>
+                        <iframe id="sample-preview-frame" title="Sample preview" data-tooltip="Sample preview" class="hidden w-full min-h-[480px] border-0 bg-white"></iframe>
                     </div>
                     <p class="font-body-sm text-body-sm text-on-surface-variant mt-sm">
                         QR is a placeholder. Logos and signature use your admin profile when set. Draft is saved before preview.
@@ -522,7 +458,7 @@
 
             <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white border border-outline-variant rounded-full shadow-md flex items-center px-sm py-xs gap-xs z-30">
                 <button id="zoom-out" type="button" class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface rounded-full hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[18px]">remove</span></button>
-                <button id="zoom-fit" type="button" class="font-label-sm text-label-sm text-on-surface-variant min-w-[52px] text-center hover:text-on-surface px-xs" title="Fit to screen">100%</button>
+                <button id="zoom-fit" type="button" class="font-label-sm text-label-sm text-on-surface-variant min-w-[52px] text-center hover:text-on-surface px-xs" title="Fit to screen" data-tooltip="Fit to screen">100%</button>
                 <button id="zoom-in" type="button" class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface rounded-full hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[18px]">add</span></button>
             </div>
         </section>
@@ -578,23 +514,22 @@
                                 <button type="button" data-align="center" class="align-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[18px]">format_align_center</span></button>
                                 <button type="button" data-align="right" class="align-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[18px]">format_align_right</span></button>
                             </div>
-                            <select id="prop-align" class="hidden"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
                         </div>
                         <div>
                             <label class="font-body-sm text-body-sm text-on-surface-variant block mb-xs">Style</label>
                             <div class="flex gap-xs">
-                                <button id="prop-bold" type="button" class="style-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Bold"><span class="material-symbols-outlined text-[18px]">format_bold</span></button>
-                                <button id="prop-italic" type="button" class="style-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Italic"><span class="material-symbols-outlined text-[18px]">format_italic</span></button>
-                                <button id="prop-underline" type="button" class="style-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Underline"><span class="material-symbols-outlined text-[18px]">format_underlined</span></button>
-                                <button id="prop-strikethrough" type="button" class="style-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Strikethrough"><span class="material-symbols-outlined text-[18px]">format_strikethrough</span></button>
+                                <button id="prop-bold" type="button" class="style-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Bold" data-tooltip="Bold"><span class="material-symbols-outlined text-[18px]">format_bold</span></button>
+                                <button id="prop-italic" type="button" class="style-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Italic" data-tooltip="Italic"><span class="material-symbols-outlined text-[18px]">format_italic</span></button>
+                                <button id="prop-underline" type="button" class="style-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Underline" data-tooltip="Underline"><span class="material-symbols-outlined text-[18px]">format_underlined</span></button>
+                                <button id="prop-strikethrough" type="button" class="style-btn flex-1 h-9 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Strikethrough" data-tooltip="Strikethrough"><span class="material-symbols-outlined text-[18px]">format_strikethrough</span></button>
                             </div>
                         </div>
                         <div>
                             <label class="font-body-sm text-body-sm text-on-surface-variant block mb-xs">Change Case</label>
                             <div class="flex gap-xs">
-                                <button id="prop-case-title" type="button" class="flex-1 h-9 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors font-body-sm text-body-sm" title="Title Case">Aa</button>
-                                <button id="prop-case-upper" type="button" class="flex-1 h-9 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors font-body-sm text-body-sm" title="UPPERCASE">AA</button>
-                                <button id="prop-case-lower" type="button" class="flex-1 h-9 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors font-body-sm text-body-sm" title="lowercase">aa</button>
+                                <button id="prop-case-title" type="button" class="flex-1 h-9 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors font-body-sm text-body-sm" title="Title Case" data-tooltip="Title Case">Aa</button>
+                                <button id="prop-case-upper" type="button" class="flex-1 h-9 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors font-body-sm text-body-sm" title="UPPERCASE" data-tooltip="UPPERCASE">AA</button>
+                                <button id="prop-case-lower" type="button" class="flex-1 h-9 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors font-body-sm text-body-sm" title="lowercase" data-tooltip="lowercase">aa</button>
                             </div>
                         </div>
                         <div>
@@ -613,23 +548,23 @@
                             <h4 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wide">Effects</h4>
 
                             <div class="grid grid-cols-2 gap-1.5" role="group" aria-label="Text effects">
-                                <button id="prop-shadow-toggle" type="button" class="effect-chip style-btn" title="Drop shadow" aria-pressed="false">
+                                <button id="prop-shadow-toggle" type="button" class="effect-chip style-btn" title="Drop shadow" data-tooltip="Drop shadow" aria-pressed="false">
                                     <span class="material-symbols-outlined" aria-hidden="true">blur_on</span>
                                     <span>Shadow</span>
                                 </button>
-                                <button id="prop-outline-toggle" type="button" class="effect-chip style-btn" title="Text outline" aria-pressed="false">
+                                <button id="prop-outline-toggle" type="button" class="effect-chip style-btn" title="Text outline" data-tooltip="Text outline" aria-pressed="false">
                                     <span class="material-symbols-outlined" aria-hidden="true">border_color</span>
                                     <span>Outline</span>
                                 </button>
-                                <button id="prop-highlight-toggle" type="button" class="effect-chip style-btn" title="Text highlight" aria-pressed="false">
+                                <button id="prop-highlight-toggle" type="button" class="effect-chip style-btn" title="Text highlight" data-tooltip="Text highlight" aria-pressed="false">
                                     <span class="material-symbols-outlined" aria-hidden="true">ink_highlighter</span>
                                     <span>Highlight</span>
                                 </button>
-                                <button id="prop-gradient-toggle" type="button" class="effect-chip style-btn" title="Gradient fill" aria-pressed="false">
+                                <button id="prop-gradient-toggle" type="button" class="effect-chip style-btn" title="Gradient fill" data-tooltip="Gradient fill" aria-pressed="false">
                                     <span class="material-symbols-outlined" aria-hidden="true">gradient</span>
                                     <span>Gradient</span>
                                 </button>
-                                <button id="prop-autofit-toggle" type="button" class="effect-chip style-btn col-span-2" title="Shrink font automatically if long text overflows this box" aria-pressed="false">
+                                <button id="prop-autofit-toggle" type="button" class="effect-chip style-btn col-span-2" title="Shrink font automatically if long text overflows this box" data-tooltip="Shrink font automatically if long text overflows this box" aria-pressed="false">
                                     <span class="material-symbols-outlined" aria-hidden="true">fit_screen</span>
                                     <span>Auto-fit to box</span>
                                 </button>
@@ -639,11 +574,11 @@
                                 <div class="grid grid-cols-2 gap-xs items-end">
                                     <div>
                                         <label for="prop-shadow-color">Color</label>
-                                        <input id="prop-shadow-color" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="Shadow color">
+                                        <input id="prop-shadow-color" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="Shadow color" data-tooltip="Shadow color">
                                     </div>
                                     <div>
                                         <label for="prop-shadow-blur">Blur</label>
-                                        <input id="prop-shadow-blur" type="range" min="0" max="20" step="1" class="w-full accent-primary" title="Shadow blur">
+                                        <input id="prop-shadow-blur" type="range" min="0" max="20" step="1" class="w-full accent-primary" title="Shadow blur" data-tooltip="Shadow blur">
                                     </div>
                                 </div>
                             </div>
@@ -652,29 +587,29 @@
                                 <div class="grid grid-cols-2 gap-xs items-end">
                                     <div>
                                         <label for="prop-outline-color">Color</label>
-                                        <input id="prop-outline-color" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="Outline color">
+                                        <input id="prop-outline-color" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="Outline color" data-tooltip="Outline color">
                                     </div>
                                     <div>
                                         <label for="prop-outline-width">Width</label>
-                                        <input id="prop-outline-width" type="range" min="1" max="10" step="1" class="w-full accent-primary" title="Outline width">
+                                        <input id="prop-outline-width" type="range" min="1" max="10" step="1" class="w-full accent-primary" title="Outline width" data-tooltip="Outline width">
                                     </div>
                                 </div>
                             </div>
 
                             <div id="highlight-controls" class="effect-options hidden">
                                 <label for="prop-highlight-color">Highlight color</label>
-                                <input id="prop-highlight-color" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="Highlight color">
+                                <input id="prop-highlight-color" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="Highlight color" data-tooltip="Highlight color">
                             </div>
 
                             <div id="gradient-controls" class="effect-options hidden">
                                 <div class="grid grid-cols-2 gap-xs">
                                     <div>
                                         <label for="prop-gradient-from">From</label>
-                                        <input id="prop-gradient-from" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="From color">
+                                        <input id="prop-gradient-from" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="From color" data-tooltip="From color">
                                     </div>
                                     <div>
                                         <label for="prop-gradient-to">To</label>
-                                        <input id="prop-gradient-to" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="To color">
+                                        <input id="prop-gradient-to" type="color" class="h-8 w-full rounded-md border border-outline-variant bg-white" title="To color" data-tooltip="To color">
                                     </div>
                                 </div>
                             </div>
@@ -704,8 +639,8 @@
                         <div>
                             <label class="font-body-sm text-body-sm text-on-surface-variant block mb-xs">Flip</label>
                             <div class="flex gap-xs">
-                                <button id="prop-flip-h" type="button" class="style-btn flex-1 h-9 flex items-center justify-center gap-xs rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Flip horizontal"><span class="material-symbols-outlined text-[18px]">flip</span><span class="font-label-sm text-label-sm">H</span></button>
-                                <button id="prop-flip-v" type="button" class="style-btn flex-1 h-9 flex items-center justify-center gap-xs rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Flip vertical"><span class="material-symbols-outlined text-[18px] rotate-90">flip</span><span class="font-label-sm text-label-sm">V</span></button>
+                                <button id="prop-flip-h" type="button" class="style-btn flex-1 h-9 flex items-center justify-center gap-xs rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Flip horizontal" data-tooltip="Flip horizontal"><span class="material-symbols-outlined text-[18px]">flip</span><span class="font-label-sm text-label-sm">H</span></button>
+                                <button id="prop-flip-v" type="button" class="style-btn flex-1 h-9 flex items-center justify-center gap-xs rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors" title="Flip vertical" data-tooltip="Flip vertical"><span class="material-symbols-outlined text-[18px] rotate-90">flip</span><span class="font-label-sm text-label-sm">V</span></button>
                             </div>
                         </div>
                     </div>

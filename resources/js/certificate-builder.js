@@ -102,6 +102,29 @@ if (root) {
         toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
     }
 
+    // Shows a spinner on an upload trigger button while an async upload is
+    // in flight, restoring its original content afterwards either way.
+    async function withButtonSpinner(buttonId, task) {
+        const btn = document.getElementById(buttonId);
+        if (!btn) return task();
+
+        const originalHtml = btn.innerHTML;
+        const originalDisabled = btn.disabled;
+        const spinnerHtml = '<span class="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>';
+        // Swap only the icon glyph if one is present, otherwise the whole label.
+        btn.innerHTML = btn.querySelector('.material-symbols-outlined')
+            ? btn.innerHTML.replace(/<span class="material-symbols-outlined[^>]*>[^<]*<\/span>/, spinnerHtml)
+            : spinnerHtml;
+        btn.disabled = true;
+
+        try {
+            return await task();
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = originalDisabled;
+        }
+    }
+
     function isOverlayUiOpen() {
         const presetOpen = !document.getElementById('preset-confirm-modal')?.classList.contains('hidden');
         const previewOpen = !document.getElementById('sample-preview-drawer')?.classList.contains('hidden');
@@ -892,7 +915,7 @@ if (root) {
             li.draggable = !obj.data?.locked;
             li.dataset.index = String(realIndex);
             const lockIcon = obj.data?.locked ? 'lock' : 'lock_open';
-            li.innerHTML = `<span class="material-symbols-outlined text-[16px] text-on-surface-variant">drag_indicator</span><span class="truncate flex-1">${layerLabel(obj)}</span><button type="button" class="layer-lock-btn w-7 h-7 flex items-center justify-center rounded hover:bg-white/80 text-on-surface-variant" data-id="${obj.data?.id ?? ''}" title="Toggle lock"><span class="material-symbols-outlined text-[16px]">${lockIcon}</span></button>`;
+            li.innerHTML = `<span class="material-symbols-outlined text-[16px] text-on-surface-variant">drag_indicator</span><span class="truncate flex-1">${layerLabel(obj)}</span><button type="button" class="layer-lock-btn w-7 h-7 flex items-center justify-center rounded hover:bg-white/80 text-on-surface-variant" data-id="${obj.data?.id ?? ''}" title="Toggle lock" data-tooltip="Toggle lock"><span class="material-symbols-outlined text-[16px]">${lockIcon}</span></button>`;
 
             li.addEventListener('click', (event) => {
                 if (event.target.closest('.layer-lock-btn')) return;
@@ -1062,7 +1085,6 @@ if (root) {
             const isActive = btn.dataset.panel === activePanel;
             btn.classList.toggle('is-active', isActive);
             btn.classList.toggle('text-primary', isActive);
-            btn.classList.toggle('bg-primary-fixed/60', isActive);
             btn.classList.toggle('text-on-surface-variant', !isActive);
             const icon = btn.querySelector('.material-symbols-outlined');
             if (icon) icon.style.fontVariationSettings = isActive ? "'FILL' 1" : "'FILL' 0";
@@ -1150,11 +1172,13 @@ if (root) {
         const file = event.target.files?.[0];
         event.target.value = '';
         if (!file) return;
-        const uploaded = await uploadAsset(file);
-        if (!uploaded) return;
-        uploadedAssets.unshift(uploaded);
-        renderUploadsGallery();
-        await addDecorativeImageFromAsset(uploaded);
+        await withButtonSpinner('upload-image-btn', async () => {
+            const uploaded = await uploadAsset(file);
+            if (!uploaded) return;
+            uploadedAssets.unshift(uploaded);
+            renderUploadsGallery();
+            await addDecorativeImageFromAsset(uploaded);
+        });
     });
 
     document.getElementById('undo-btn')?.addEventListener('click', undo);
@@ -1297,12 +1321,17 @@ if (root) {
         const file = event.target.files?.[0];
         if (!file) return;
         setBgStatus('Uploading…');
-        const uploaded = await uploadAsset(file);
-        event.target.value = '';
-        if (!uploaded) return;
-        pageBackground = { type: 'image', value: uploaded.path, previewUrl: uploaded.url };
-        await applyPageBackground();
-        pushHistory();
+        await withButtonSpinner('bg-image-btn', async () => {
+            const uploaded = await uploadAsset(file);
+            event.target.value = '';
+            if (!uploaded) {
+                setBgStatus('');
+                return;
+            }
+            pageBackground = { type: 'image', value: uploaded.path, previewUrl: uploaded.url };
+            await applyPageBackground();
+            pushHistory();
+        });
     });
 
     document.getElementById('bg-clear-btn')?.addEventListener('click', () => {
@@ -1322,7 +1351,6 @@ if (root) {
     const propFontSize = document.getElementById('prop-font-size');
     const propFontFamily = document.getElementById('prop-font-family');
     const propColor = document.getElementById('prop-color');
-    const propAlign = document.getElementById('prop-align');
     const propFill = document.getElementById('prop-fill');
     const propStroke = document.getElementById('prop-stroke');
     const propStrokeWidth = document.getElementById('prop-stroke-width');
@@ -1381,7 +1409,6 @@ if (root) {
             propFontSize.value = Math.round(active.fontSize);
             propFontFamily.value = active.fontFamily || 'Inter';
             propColor.value = active.data?.textColor ?? '#151c27';
-            propAlign.value = active.textAlign;
             setActiveAlignButton(active.textAlign);
             setStyleButtonActive('prop-bold', parseInt(active.fontWeight, 10) >= 600);
             setStyleButtonActive('prop-italic', active.fontStyle === 'italic');
@@ -1462,14 +1489,6 @@ if (root) {
                 active.set('fill', event.target.value);
             }
             canvas.requestRenderAll();
-        }
-    });
-    propAlign?.addEventListener('change', (event) => {
-        const active = canvas.getActiveObject();
-        if (active?.data?.type === 'text') {
-            active.set('textAlign', event.target.value);
-            canvas.requestRenderAll();
-            pushHistory();
         }
     });
     alignButtons.forEach((btn) => {
@@ -2384,18 +2403,20 @@ if (root) {
         const file = event.target.files?.[0];
         event.target.value = '';
         if (!file || !config.libraryUploadUrl) return;
-        const body = new FormData();
-        body.append('file', file);
-        const response = await fetch(config.libraryUploadUrl, {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': config.csrfToken, Accept: 'application/json' },
-            body,
+        await withButtonSpinner('library-upload-btn', async () => {
+            const body = new FormData();
+            body.append('file', file);
+            const response = await fetch(config.libraryUploadUrl, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': config.csrfToken, Accept: 'application/json' },
+                body,
+            });
+            if (!response.ok) {
+                showBuilderToast('Library upload failed.', 'error');
+                return;
+            }
+            await loadLibraryGallery();
         });
-        if (!response.ok) {
-            showBuilderToast('Library upload failed.', 'error');
-            return;
-        }
-        await loadLibraryGallery();
     });
     document.getElementById('replace-image-btn')?.addEventListener('click', () => {
         document.getElementById('replace-image-input')?.click();
@@ -2404,9 +2425,11 @@ if (root) {
         const file = event.target.files?.[0];
         event.target.value = '';
         if (!file) return;
-        const uploaded = await uploadAsset(file);
-        if (!uploaded) return;
-        await insertLibraryAsset(uploaded.path, uploaded.url);
+        await withButtonSpinner('replace-image-btn', async () => {
+            const uploaded = await uploadAsset(file);
+            if (!uploaded) return;
+            await insertLibraryAsset(uploaded.path, uploaded.url);
+        });
     });
 
     // Keep replace button visibility in sync with selection.
