@@ -3,12 +3,14 @@
 namespace App\Providers;
 
 use App\Listeners\LogEmailDelivery;
+use App\Models\PersonalAccessToken;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,5 +34,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(NotificationSent::class, [LogEmailDelivery::class, 'handleSent']);
         Event::listen(NotificationFailed::class, [LogEmailDelivery::class, 'handleFailed']);
+
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
     }
 }

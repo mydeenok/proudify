@@ -43,6 +43,11 @@
                     Certificate Orders
                 </x-admin-nav-link>
             @endif
+            @if (Route::has('admin.api-tokens.index'))
+                <x-admin-nav-link :href="route('admin.api-tokens.index')" :active="request()->routeIs('admin.api-tokens.*')" icon="key">
+                    API Keys
+                </x-admin-nav-link>
+            @endif
             {{-- Subscription Plans / User Subscriptions nav hidden for now
                  — billing moved to pay-per-certificate (see Billing
                  Settings / Certificate Orders above); these routes still
