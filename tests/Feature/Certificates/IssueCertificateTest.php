@@ -7,11 +7,11 @@ use App\Jobs\Certificates\GenerateCertificatePdfJob;
 use App\Jobs\Certificates\GenerateCertificateQrCodeJob;
 use App\Jobs\Certificates\SendCertificateIssuedEmailJob;
 use App\Models\Certificate;
-use App\Models\Subscription;
+use App\Models\CertificateOrder;
 use App\Models\Template;
 use App\Models\User;
-use App\Models\UserSubscription;
 use App\Services\CertificateRenderService;
+use App\Services\RazorpayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -55,12 +55,13 @@ class IssueCertificateTest extends TestCase
         $this->app->instance(CertificateRenderService::class, $mock);
     }
 
-    public function test_a_user_can_issue_a_single_certificate(): void
+    /**
+     * Pay-per-certificate: a non-admin submitting the form is sent to
+     * checkout instead of getting a certificate immediately - no
+     * CertificateOrder exists yet at that point, no Certificate ever does.
+     */
+    public function test_a_user_is_sent_to_checkout_before_a_certificate_is_issued(): void
     {
-        Bus::fake();
-        $this->fakeAssetGeneration();
-        Subscription::factory()->free()->create();
-
         $user = User::factory()->create();
         $template = Template::factory()->create();
 
@@ -72,21 +73,72 @@ class IssueCertificateTest extends TestCase
             'date_of_issue' => now()->toDateString(),
         ]);
 
-        $certificate = Certificate::firstOrFail();
+        $order = CertificateOrder::firstOrFail();
 
-        $response->assertRedirect(route('certificates.show', $certificate));
+        $response->assertRedirect(route('certificates.checkout.show', $order));
+        $this->assertSame($user->id, $order->user_id);
+        $this->assertSame('single', $order->type);
+        $this->assertSame('pending', $order->status);
+        $this->assertSame(1, $order->quantity);
+        $this->assertSame('20.00', $order->unit_price);
+        $this->assertSame('20.00', $order->total_amount);
+        $this->assertSame(0, Certificate::count());
+    }
+
+    /**
+     * The other half of the flow above: once Razorpay's signature verifies,
+     * the certificate is actually created, exactly as it always was pre-
+     * payment-gate - this is what CertificateOrderCompletionService drives.
+     */
+    public function test_a_certificate_is_issued_after_checkout_payment_is_verified(): void
+    {
+        Bus::fake();
+        $this->fakeAssetGeneration();
+
+        $this->mock(RazorpayService::class, function ($mock) {
+            $mock->shouldReceive('verifySignature')->once()->andReturn(true);
+        });
+
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+
+        $order = CertificateOrder::create([
+            'user_id' => $user->id,
+            'type' => 'single',
+            'template_id' => $template->id,
+            'payload' => [
+                'title' => 'Certificate of Excellence',
+                'recipient_name' => 'Jane Doe',
+                'recipient_email' => 'jane@example.com',
+                'date_of_issue' => now()->toDateString(),
+            ],
+            'quantity' => 1,
+            'unit_price' => 20,
+            'subtotal' => 20,
+            'total_amount' => 20,
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('certificates.checkout.verify-payment', $order), [
+            'razorpay_order_id' => 'order_test123',
+            'razorpay_payment_id' => 'pay_test123',
+            'razorpay_signature' => 'sig_test123',
+        ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+
+        $certificate = Certificate::firstOrFail();
+        $order->refresh();
+
         $this->assertSame($user->id, $certificate->user_id);
         $this->assertNotEmpty($certificate->verification_code);
-        $this->assertNotEmpty($certificate->verification_signature);
-        $this->assertSame('active', $certificate->status);
+        $this->assertSame('paid', $order->status);
+        $this->assertSame($certificate->id, $order->certificate_id);
 
-        // Single issuance is synchronous now - the certificate is fully
-        // ready by the time store() returns, no job chain for its assets.
+        // Single issuance is synchronous - the certificate is fully ready
+        // by the time verify-payment returns, no job chain for its assets.
         $this->assertSame('completed', $certificate->image_generation_status);
-        $this->assertNotEmpty($certificate->qr_code_path);
-        $this->assertNotEmpty($certificate->pdf_path);
-        $this->assertNotEmpty($certificate->image_path);
-
         Bus::assertDispatched(SendCertificateIssuedEmailJob::class);
         Bus::assertNotDispatched(GenerateCertificateQrCodeJob::class);
         Bus::assertNotDispatched(GenerateCertificatePdfJob::class);
@@ -156,48 +208,7 @@ class IssueCertificateTest extends TestCase
             ->assertOk();
     }
 
-    public function test_a_user_with_no_subscription_auto_claims_the_free_plan(): void
-    {
-        Bus::fake();
-        $this->fakeAssetGeneration();
-        Subscription::factory()->free()->create();
-
-        $user = User::factory()->create();
-        $template = Template::factory()->create();
-
-        $this->actingAs($user)->post('/certificates', [
-            'template_id' => $template->id,
-            'title' => 'Certificate',
-            'recipient_name' => 'Jane Doe',
-            'recipient_email' => 'jane@example.com',
-            'date_of_issue' => now()->toDateString(),
-        ]);
-
-        $subscription = UserSubscription::where('user_id', $user->id)->firstOrFail();
-        $this->assertSame(1, $subscription->certificates_used);
-        $this->assertSame(1, $subscription->users_used);
-    }
-
-    public function test_a_user_who_exhausted_their_quota_is_redirected_to_pricing(): void
-    {
-        $user = User::factory()->create();
-        $template = Template::factory()->create();
-        $subscription = Subscription::factory()->create();
-        UserSubscription::factory()->exhausted()->for($user)->for($subscription)->create();
-
-        $response = $this->actingAs($user)->post('/certificates', [
-            'template_id' => $template->id,
-            'title' => 'Certificate',
-            'recipient_name' => 'Jane Doe',
-            'recipient_email' => 'jane@example.com',
-            'date_of_issue' => now()->toDateString(),
-        ]);
-
-        $response->assertRedirect(route('pricing'));
-        $this->assertSame(0, Certificate::count());
-    }
-
-    public function test_admins_issue_without_any_quota_check(): void
+    public function test_admins_issue_directly_without_going_through_checkout(): void
     {
         Bus::fake();
         $this->fakeAssetGeneration();
@@ -284,14 +295,20 @@ class IssueCertificateTest extends TestCase
         ]);
     }
 
+    /**
+     * Actor is an admin here - this test is about custom-field/image
+     * storage on the issued Certificate, unrelated to billing, and an
+     * admin issues directly without the checkout detour a tenant now goes
+     * through (see test_a_certificate_is_issued_after_checkout_payment_is_verified
+     * for that path).
+     */
     public function test_a_certificate_can_be_issued_with_custom_text_and_image_fields(): void
     {
         Bus::fake();
         $this->fakeAssetGeneration();
         Storage::fake('local');
-        Subscription::factory()->free()->create();
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $template = Template::factory()->create([
             'custom_field_schema' => [
                 ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => true],
@@ -319,8 +336,6 @@ class IssueCertificateTest extends TestCase
 
     public function test_a_required_custom_text_field_is_validated(): void
     {
-        Subscription::factory()->free()->create();
-
         $user = User::factory()->create();
         $template = Template::factory()->create([
             'custom_field_schema' => [
@@ -340,13 +355,13 @@ class IssueCertificateTest extends TestCase
         $this->assertSame(0, Certificate::count());
     }
 
+    /** Admin actor - test is about output escaping, unrelated to billing. */
     public function test_a_script_injection_attempt_in_a_custom_text_field_is_escaped_not_executed(): void
     {
         Bus::fake();
         $this->fakeAssetGeneration();
-        Subscription::factory()->free()->create();
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $template = Template::factory()->create([
             'html_content' => '<h1>{course_name}</h1>',
             'custom_field_schema' => [
@@ -372,8 +387,6 @@ class IssueCertificateTest extends TestCase
 
     public function test_a_custom_image_field_rejects_a_non_image_file(): void
     {
-        Subscription::factory()->free()->create();
-
         $user = User::factory()->create();
         $template = Template::factory()->create([
             'custom_field_schema' => [
@@ -396,8 +409,6 @@ class IssueCertificateTest extends TestCase
 
     public function test_a_custom_image_field_rejects_an_oversized_file(): void
     {
-        Subscription::factory()->free()->create();
-
         $user = User::factory()->create();
         $template = Template::factory()->create([
             'custom_field_schema' => [
@@ -418,14 +429,14 @@ class IssueCertificateTest extends TestCase
         $this->assertSame(0, Certificate::count());
     }
 
+    /** Admin actor - test is about field-schema security, unrelated to billing. */
     public function test_a_custom_field_key_not_declared_in_the_templates_schema_is_silently_dropped(): void
     {
         Bus::fake();
         $this->fakeAssetGeneration();
         Storage::fake('local');
-        Subscription::factory()->free()->create();
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $template = Template::factory()->create([
             'custom_field_schema' => [
                 ['key' => 'course_name', 'label' => 'Course Name', 'type' => 'text', 'required' => false],
@@ -520,14 +531,15 @@ class IssueCertificateTest extends TestCase
         $response->assertDontSee('name="qrcode"', false);
     }
 
+    /** Admin actor - test is about the canvas form mapping to the right
+     * validated fields, unrelated to billing. */
     public function test_a_certificate_can_be_issued_through_the_canvas_pages_form(): void
     {
         Bus::fake();
         $this->fakeAssetGeneration();
         Storage::fake('local');
-        Subscription::factory()->free()->create();
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $template = Template::factory()->create([
             'canvas_json' => [
                 'elements' => [

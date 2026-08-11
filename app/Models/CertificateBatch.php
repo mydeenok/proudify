@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CertificateBatch extends Model
 {
@@ -56,6 +57,16 @@ class CertificateBatch extends Model
     public function certificates(): HasMany
     {
         return $this->hasMany(Certificate::class);
+    }
+
+    /**
+     * Only present for tenant-paid batches - an admin-issued batch (see
+     * BulkUploadWizardService::createAdminBatch) never gets a
+     * CertificateOrder, since admin issuance stays free.
+     */
+    public function certificateOrder(): HasOne
+    {
+        return $this->hasOne(CertificateOrder::class, 'certificate_batch_id');
     }
 
     public function isFinished(): bool

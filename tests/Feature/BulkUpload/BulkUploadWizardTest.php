@@ -63,14 +63,33 @@ class BulkUploadWizardTest extends TestCase
         $this->assertSame(3, $batch->total_rows);
         $this->assertSame(2, $batch->items()->where('status', 'pending')->count());
         $this->assertSame(1, $batch->items()->where('status', 'skipped')->count());
+    }
+
+    /**
+     * A tenant-owned batch has no CertificateOrder until it goes through
+     * checkout - a direct POST to the legacy confirm route (bypassing the
+     * Livewire wizard's payment gate entirely) must not be able to slip a
+     * batch through for free.
+     */
+    public function test_confirming_a_tenant_batch_without_payment_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+        $file = UploadedFile::fake()->createWithContent('recipients.csv', self::CSV);
+
+        $this->actingAs($user)->post(route('bulk-upload.store'), [
+            'template_id' => $template->id,
+            'file' => $file,
+        ]);
+        $batch = CertificateBatch::firstOrFail();
+        $this->actingAs($user)->post(route('bulk-upload.map-columns.store', $batch), ['mapping' => self::MAPPING]);
 
         Bus::fake();
 
         $this->actingAs($user)->post(route('bulk-upload.confirm', $batch))
-            ->assertRedirect(route('bulk-upload.status', $batch));
+            ->assertSessionHasErrors('batch');
 
-        Bus::assertDispatched(DispatchCertificateBatchJob::class);
-        Notification::assertSentTo($admin, AdminBulkUploadRequestedNotification::class);
+        Bus::assertNotDispatched(DispatchCertificateBatchJob::class);
     }
 
     public function test_a_file_outside_the_row_cap_is_rejected_at_mapping_time(): void
@@ -106,12 +125,17 @@ class BulkUploadWizardTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * Pay-per-certificate: a tenant confirming the review step is sent to
+     * checkout instead of the batch dispatching immediately - no
+     * DispatchCertificateBatchJob until payment is verified (see
+     * test_a_bulk_batch_dispatches_after_checkout_payment_is_verified for
+     * that half of the flow).
+     */
     public function test_livewire_wizard_runs_end_to_end_without_page_reloads(): void
     {
-        Notification::fake();
         Bus::fake();
 
-        $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
         $template = Template::factory()->create();
         $file = UploadedFile::fake()->createWithContent('recipients.csv', self::CSV);
@@ -129,13 +153,55 @@ class BulkUploadWizardTest extends TestCase
             ->set('mapping', self::MAPPING)
             ->call('saveMapping')
             ->assertSet('step', 'review')
-            ->call('confirm')
-            ->assertRedirect(route('bulk-upload.status', CertificateBatch::firstOrFail()));
+            ->call('confirm');
 
         $batch = CertificateBatch::firstOrFail();
+        $order = \App\Models\CertificateOrder::where('certificate_batch_id', $batch->id)->firstOrFail();
+
         $this->assertSame('queued', $batch->status);
-        $this->assertSame(2, $batch->items()->where('status', 'pending')->count());
-        $this->assertSame(1, $batch->items()->where('status', 'skipped')->count());
+        $this->assertSame('pending', $order->status);
+        $this->assertSame(2, $order->quantity);
+        $this->assertSame('40.00', $order->total_amount);
+        Bus::assertNotDispatched(DispatchCertificateBatchJob::class);
+    }
+
+    public function test_a_bulk_batch_dispatches_after_checkout_payment_is_verified(): void
+    {
+        Notification::fake();
+        Bus::fake();
+
+        $this->mock(\App\Services\RazorpayService::class, function ($mock) {
+            $mock->shouldReceive('verifySignature')->once()->andReturn(true);
+        });
+
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $template = Template::factory()->create();
+        $file = UploadedFile::fake()->createWithContent('recipients.csv', self::CSV);
+
+        Livewire::actingAs($user)
+            ->test(BulkUploadWizard::class, ['mode' => 'tenant', 'step' => 'template'])
+            ->call('selectTemplate', $template->id)
+            ->set('file', $file)
+            ->call('continueToMapping')
+            ->set('mapping', self::MAPPING)
+            ->call('saveMapping')
+            ->call('confirm');
+
+        $batch = CertificateBatch::firstOrFail();
+        $order = \App\Models\CertificateOrder::where('certificate_batch_id', $batch->id)->firstOrFail();
+
+        $this->actingAs($user)->postJson(route('bulk-upload.checkout.verify-payment', $order), [
+            'razorpay_order_id' => 'order_bulk_test',
+            'razorpay_payment_id' => 'pay_bulk_test',
+            'razorpay_signature' => 'sig_bulk_test',
+        ])->assertOk()->assertJsonPath('success', true);
+
+        $batch->refresh();
+        $order->refresh();
+
+        $this->assertSame('paid', $order->status);
+        $this->assertSame('queued', $batch->status);
         Bus::assertDispatched(DispatchCertificateBatchJob::class);
         Notification::assertSentTo($admin, AdminBulkUploadRequestedNotification::class);
     }

@@ -114,6 +114,14 @@ class BulkUploadController extends Controller
         ]);
     }
 
+    /**
+     * The live review UI drives confirmation through the Livewire wizard's
+     * own confirm() action (see BulkUploadWizard), which is where the
+     * payment gate actually lives. This plain route stays as a fallback
+     * entry point, so BulkUploadWizardService::confirm() enforces the same
+     * "paid order required unless admin-issued" guard regardless of which
+     * one is hit.
+     */
     public function confirm(Request $request, CertificateBatch $batch, BulkUploadWizardService $wizard): RedirectResponse
     {
         $this->authorizeAccess($request, $batch);

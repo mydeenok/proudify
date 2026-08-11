@@ -82,6 +82,24 @@ class BulkUploadWizardService
             ]);
         }
 
+        // Admin-issued batches (issued_by set) stay free and never get a
+        // CertificateOrder - anything else MUST have one, paid, with a
+        // matching row count. This is the single funnel every path into
+        // dispatch goes through (the Livewire wizard's confirm(),
+        // CertificateOrderCompletionService after payment, and a forged
+        // direct POST to the legacy confirm route), so neither a payment
+        // skip nor a stale second tab re-mapping rows after payment can
+        // slip a batch through.
+        if ($batch->issued_by === null) {
+            $order = $batch->certificateOrder;
+
+            if (! $order || $order->status !== 'paid' || $order->quantity !== $pendingCount) {
+                throw ValidationException::withMessages([
+                    'batch' => 'This batch has not been paid for, or its row count changed after payment. Please review and pay again.',
+                ]);
+            }
+        }
+
         DispatchCertificateBatchJob::dispatch($batch);
 
         $batch->loadMissing('user', 'template');

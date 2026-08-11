@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\BulkUploadCheckoutController;
 use App\Http\Controllers\BulkUploadController;
+use App\Http\Controllers\CertificateCheckoutController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
@@ -73,6 +75,15 @@ Route::middleware(['auth', 'approved'])->group(function () {
     Route::post('/certificates', [CertificateController::class, 'store'])
         ->middleware('throttle:20,1')
         ->name('certificates.store');
+
+    Route::prefix('certificates/checkout/{certificateOrder:uuid}')->name('certificates.checkout.')->group(function () {
+        Route::get('/', [CertificateCheckoutController::class, 'show'])->name('show');
+        Route::post('/create-order', [CertificateCheckoutController::class, 'createOrder'])->name('create-order');
+        Route::post('/verify-payment', [CertificateCheckoutController::class, 'verifyPayment'])
+            ->middleware('throttle:20,1')
+            ->name('verify-payment');
+    });
+
     Route::get('/certificates/{certificate:uuid}', [CertificateController::class, 'show'])->name('certificates.show');
     Route::get('/certificates/{certificate:uuid}/status', [CertificateController::class, 'status'])->name('certificates.status');
     Route::post('/certificates/{certificate:uuid}/regenerate', [CertificateController::class, 'regenerate'])
@@ -91,6 +102,15 @@ Route::middleware(['auth', 'approved'])->group(function () {
         Route::post('/{batch}/map-columns', [BulkUploadController::class, 'storeMapping'])->name('map-columns.store');
         Route::get('/{batch}/review', [BulkUploadController::class, 'review'])->name('review');
         Route::post('/{batch}/confirm', [BulkUploadController::class, 'confirm'])->name('confirm');
+
+        Route::prefix('checkout/{certificateOrder:uuid}')->name('checkout.')->group(function () {
+            Route::get('/', [BulkUploadCheckoutController::class, 'show'])->name('show');
+            Route::post('/create-order', [BulkUploadCheckoutController::class, 'createOrder'])->name('create-order');
+            Route::post('/verify-payment', [BulkUploadCheckoutController::class, 'verifyPayment'])
+                ->middleware('throttle:20,1')
+                ->name('verify-payment');
+        });
+
         Route::get('/{batch}/status', [BulkUploadController::class, 'status'])->name('status');
         Route::get('/{batch}/status-data', [BulkUploadController::class, 'statusData'])->name('status-data');
         Route::get('/{batch}/error-report', [BulkUploadController::class, 'downloadErrorReport'])->name('error-report');
