@@ -8,6 +8,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -28,6 +29,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'approved' => EnsureUserIsApproved::class,
             'admin' => EnsureUserIsAdmin::class,
             'tenant-only' => RedirectAdminFromTenantRoutes::class,
+        ]);
+
+        // Required for the "log out other devices" security feature to
+        // actually take effect: Auth::logoutOtherDevices() only rehashes
+        // the current session's password hash - it's this middleware that
+        // checks that hash on every request and is what actually
+        // invalidates a stale session on its next request.
+        $middleware->web(append: [
+            AuthenticateSession::class,
         ]);
 
         // Razorpay's webhook POST carries its own HMAC signature (verified

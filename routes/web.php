@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\BulkUploadCheckoutController;
 use App\Http\Controllers\BulkUploadController;
 use App\Http\Controllers\CertificateCheckoutController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\PricingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicVerificationController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\UserSubscriptionController;
 use App\Http\Controllers\Webhooks\RazorpayWebhookController;
@@ -54,6 +56,12 @@ Route::middleware(['auth', 'approved'])->group(function () {
     Route::get('/profile/organization/logo/{index}', [ProfileController::class, 'logo'])->name('profile.organization.logo');
     Route::get('/profile/organization/signature', [ProfileController::class, 'signature'])->name('profile.organization.signature');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::post('/profile/api-tokens', [ApiTokenController::class, 'store'])->name('profile.api-tokens.store');
+    Route::delete('/profile/api-tokens/{tokenId}', [ApiTokenController::class, 'destroy'])->name('profile.api-tokens.destroy');
+
+    Route::delete('/profile/sessions/{sessionId}', [SessionController::class, 'destroy'])->name('profile.sessions.destroy');
+    Route::delete('/profile/sessions', [SessionController::class, 'destroyOthers'])->name('profile.sessions.destroy-others');
 
     Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
 
