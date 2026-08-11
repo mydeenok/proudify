@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminAnalyticsController;
 use App\Http\Controllers\Admin\AdminCertificateController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\ApiTokenController;
 use App\Http\Controllers\Admin\BillingSettingController;
 use App\Http\Controllers\Admin\BulkUploadController;
 use App\Http\Controllers\Admin\CertificateAssetController;
@@ -67,6 +68,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::get('certificate-orders', [CertificateOrderController::class, 'index'])->name('certificate-orders.index');
     Route::post('certificate-orders/{certificateOrder}/refund', [CertificateOrderController::class, 'refund'])->name('certificate-orders.refund');
+
+    Route::get('api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');
 
     Route::get('contact-requests', [ContactRequestController::class, 'index'])->name('contact-requests.index');
     Route::get('contact-requests/{contactRequest}', [ContactRequestController::class, 'show'])->name('contact-requests.show');
