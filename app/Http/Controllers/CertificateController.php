@@ -17,9 +17,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class CertificateController extends Controller
 {
@@ -57,7 +59,27 @@ class CertificateController extends Controller
             ])),
         );
 
-        $preview = $renderService->renderPreview($template, $user, $previewForm);
+        // A single broken template asset (corrupt background/logo image,
+        // bad font) can crash the Node canvas renderer at the native layer
+        // (SIGABRT) in a way PHP can't recover from mid-render. Without this
+        // guard that takes down the whole create page with a 500 - keep the
+        // page usable with a friendly notice instead, and log which template
+        // needs attention.
+        try {
+            $preview = $renderService->renderPreview($template, $user, $previewForm);
+        } catch (Throwable $exception) {
+            Log::error('Certificate live preview render failed.', [
+                'template_id' => $template->id,
+                'user_id' => $user->id,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            $preview = [
+                'mode' => 'html',
+                'contentType' => 'text/html; charset=UTF-8',
+                'body' => '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center;font-family:sans-serif;color:#6b7280;">Live preview is temporarily unavailable for this template. You can still fill in the form below.</div>',
+            ];
+        }
 
         $elements = is_array($template->canvas_json['elements'] ?? null)
             ? $template->canvas_json['elements']

@@ -16,6 +16,67 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { decompress } from 'wawoff2';
 
 /**
+ * @napi-rs/canvas's image decoder is a native Skia binding - a malformed or
+ * misidentified file (e.g. a non-image saved with an image extension, a
+ * truncated download) can make it abort the whole process (SIGABRT) instead
+ * of raising a catchable JS error, bypassing every try/catch below. Sniffing
+ * the magic bytes first turns that class of bad file into a normal "skip
+ * this element" instead of taking the whole render down.
+ */
+function looksLikeSupportedImage(buffer) {
+    if (!buffer || buffer.length < 12) {
+        return false;
+    }
+
+    if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+        return true; // PNG
+    }
+
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+        return true; // JPEG
+    }
+
+    if (buffer.subarray(0, 4).toString('ascii') === 'GIF8') {
+        return true; // GIF
+    }
+
+    if (buffer[0] === 0x42 && buffer[1] === 0x4d) {
+        return true; // BMP
+    }
+
+    if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+        return true; // WEBP
+    }
+
+    return false;
+}
+
+/**
+ * Reads a local image path and returns its bytes only if it passes the
+ * format sniff above - null otherwise. Centralised so drawImage() and
+ * paintBackground() apply the same guard before calling loadImage().
+ */
+function readSafeImageBytes(path, label) {
+    let raw;
+
+    try {
+        raw = readFileSync(path);
+    } catch (error) {
+        process.stderr.write(`skipping missing/unreadable ${label} "${path}": ${error.message}\n`);
+
+        return null;
+    }
+
+    if (!looksLikeSupportedImage(raw)) {
+        process.stderr.write(`skipping ${label} with unrecognized/corrupt format: "${path}"\n`);
+
+        return null;
+    }
+
+    return raw;
+}
+
+/**
  * Fonts ship as .woff2 (@fontsource packages) — Skia wants .ttf/.otf.
  * Decode once per font and cache to disk (path chosen by the PHP caller).
  *
@@ -233,12 +294,18 @@ async function drawImage(ctx, el, box) {
         return;
     }
 
+    const raw = readSafeImageBytes(el.src, 'image');
+
+    if (!raw) {
+        return;
+    }
+
     let image;
 
     try {
-        image = await loadImage(el.src);
+        image = await loadImage(raw);
     } catch (error) {
-        process.stderr.write(`skipping missing/unreadable image "${el.src}": ${error.message}\n`);
+        process.stderr.write(`skipping unloadable image "${el.src}": ${error.message}\n`);
 
         return;
     }
@@ -453,8 +520,14 @@ async function paintBackground(ctx, spec) {
         return;
     }
 
+    const raw = readSafeImageBytes(spec.backgroundImage, 'background image');
+
+    if (!raw) {
+        return;
+    }
+
     try {
-        const image = await loadImage(spec.backgroundImage);
+        const image = await loadImage(raw);
         // Cover the full page (object-fit: cover equivalent) so decorative
         // certificate backgrounds always fill the page edges.
         const scale = Math.max(spec.width / image.width, spec.height / image.height);
