@@ -137,6 +137,7 @@ class CertificateCanvasRenderDriverTest extends TestCase
                     ],
                 ],
             ],
+            'version' => $template->version,
         ])->assertOk();
 
         $template->refresh();

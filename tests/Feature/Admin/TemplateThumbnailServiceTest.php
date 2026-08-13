@@ -92,6 +92,7 @@ class TemplateThumbnailServiceTest extends TestCase
                         ['id' => 'el_1', 'type' => 'text', 'binding' => 'recipient_name', 'xPercent' => 10, 'yPercent' => 20, 'widthPercent' => 40, 'heightPercent' => 10, 'rotation' => 0, 'z' => 0],
                     ],
                 ],
+                'version' => $template->version,
             ])
             ->assertOk()
             ->assertJson(['status' => 'published']);

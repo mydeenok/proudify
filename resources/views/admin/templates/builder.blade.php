@@ -125,6 +125,7 @@
 
         $builderConfig = [
             'canvasJson' => $template->canvas_json,
+            'version' => $template->version,
             'orientation' => $template->orientation,
             'pageFormat' => $template->page_format ?? 'a4',
             'backgroundHtml' => $backgroundDetectionHtml,

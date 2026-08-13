@@ -874,18 +874,78 @@ if (root) {
 
     // --- Persistence ---
 
-    async function persist(url) {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': config.csrfToken,
-                Accept: 'application/json',
-            },
-            body: JSON.stringify({ canvas_json: serialize() }),
-        });
+    // Optimistic-locking state: currentVersion tracks the version this
+    // tab last saved successfully, sent with every save/publish so the
+    // server can detect a stale write. versionConflict freezes further
+    // saves once the server has told this tab it's working off outdated
+    // data - re-attempting with the same stale version would just get
+    // rejected again, and worse, could look like a legitimate retry.
+    let currentVersion = config.version ?? 1;
+    let versionConflict = false;
+    let saveInFlight = false;
 
-        return response.json();
+    async function persist(url) {
+        if (versionConflict) {
+            showBuilderToast('This template was changed elsewhere. Reload the page to continue.', 'error');
+            throw new Error('version-conflict');
+        }
+
+        // Guards against this same tab firing two overlapping save/publish
+        // calls (autosave timer + a manual Save/Publish click landing at
+        // nearly the same moment) - without this, the second call would
+        // still be carrying the pre-first-call version and get a false
+        // "changed elsewhere" conflict against its own tab's write.
+        if (saveInFlight) {
+            await new Promise((resolve) => {
+                const check = setInterval(() => {
+                    if (!saveInFlight) {
+                        clearInterval(check);
+                        resolve();
+                    }
+                }, 50);
+            });
+        }
+
+        saveInFlight = true;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': config.csrfToken,
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({ canvas_json: serialize(), version: currentVersion }),
+            });
+
+            const result = await response.json();
+
+            if (response.status === 409) {
+                versionConflict = true;
+                showBuilderToast(result.message || 'This template was changed elsewhere. Reload the page to continue.', 'error');
+                setStatus('Conflict — reload to continue');
+                document.getElementById('save-draft-btn')?.setAttribute('disabled', 'disabled');
+                document.getElementById('publish-btn')?.setAttribute('disabled', 'disabled');
+
+                // Thrown (not just returned) so every caller's existing
+                // catch/try path stops before it can treat this as a
+                // successful save - e.g. autosaveDraft() setting
+                // "Saved just now" over the conflict status just shown, or
+                // the publish handler navigating away via result.redirect.
+                const error = new Error(result.message || 'version-conflict');
+                error.isVersionConflict = true;
+                throw error;
+            }
+
+            if (typeof result.version === 'number') {
+                currentVersion = result.version;
+            }
+
+            return result;
+        } finally {
+            saveInFlight = false;
+        }
     }
 
     // --- Layers panel ---
@@ -1980,7 +2040,12 @@ if (root) {
             lastSavedAt = new Date();
             setStatus(formatSavedAgo());
         } catch (error) {
-            setStatus('Autosave failed');
+            // persist() already set the "Conflict — reload to continue"
+            // status and toast for this case - don't stomp it with the
+            // generic message below.
+            if (!error?.isVersionConflict) {
+                setStatus('Autosave failed');
+            }
         }
     }
 
@@ -2314,10 +2379,16 @@ if (root) {
 
     document.getElementById('save-draft-btn')?.addEventListener('click', async () => {
         setStatus('Saving…');
-        await persist(config.saveUrl);
-        dirty = false;
-        lastSavedAt = new Date();
-        setStatus(formatSavedAgo());
+        try {
+            await persist(config.saveUrl);
+            dirty = false;
+            lastSavedAt = new Date();
+            setStatus(formatSavedAgo());
+        } catch (error) {
+            if (!error?.isVersionConflict) {
+                setStatus('Save failed');
+            }
+        }
     });
 
     document.getElementById('publish-btn')?.addEventListener('click', async () => {
@@ -2326,8 +2397,14 @@ if (root) {
             return;
         }
         setStatus('Publishing…');
-        const result = await persist(config.publishUrl);
-        if (result.redirect) window.location.href = result.redirect;
+        try {
+            const result = await persist(config.publishUrl);
+            if (result.redirect) window.location.href = result.redirect;
+        } catch (error) {
+            if (!error?.isVersionConflict) {
+                setStatus('Publish failed');
+            }
+        }
     });
 
     document.getElementById('shortcuts-help-btn')?.addEventListener('click', (event) => {
