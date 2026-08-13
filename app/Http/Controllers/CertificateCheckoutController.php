@@ -40,6 +40,14 @@ class CertificateCheckoutController extends Controller
             return response()->json(['message' => 'Unable to start checkout right now. Please try again shortly.'], 502);
         }
 
+        // Persisted immediately (not just returned to the browser) so the
+        // Razorpay webhook - the safety net for a browser tab that closes
+        // right after payment succeeds but before verifyPayment() runs -
+        // can actually find this order by razorpay_order_id while it's
+        // still pending. Without this the webhook's lookup never matches
+        // and a captured payment can be left stuck at pending/expired.
+        $certificateOrder->update(['razorpay_order_id' => $order['id']]);
+
         return response()->json([
             ...$order,
             'key' => config('services.razorpay.key'),

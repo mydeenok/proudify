@@ -63,10 +63,17 @@ class CertificateBatch extends Model
      * Only present for tenant-paid batches - an admin-issued batch (see
      * BulkUploadWizardService::createAdminBatch) never gets a
      * CertificateOrder, since admin issuance stays free.
+     *
+     * latestOfMany() (not a plain hasOne) because a batch can end up with
+     * more than one CertificateOrder row - e.g. the first checkout link
+     * expires and the user retries, creating a second order for the same
+     * batch. An unordered hasOne could resolve to the stale/expired order
+     * instead of the one that was actually paid, wrongly refusing to
+     * dispatch a batch the customer did pay for.
      */
     public function certificateOrder(): HasOne
     {
-        return $this->hasOne(CertificateOrder::class, 'certificate_batch_id');
+        return $this->hasOne(CertificateOrder::class, 'certificate_batch_id')->latestOfMany();
     }
 
     public function isFinished(): bool
