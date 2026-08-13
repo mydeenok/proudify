@@ -30,6 +30,14 @@ class UserController extends Controller
 
     public function reactivate(User $user): RedirectResponse
     {
+        // Unlike suspend/approve/reject, this had no status precondition -
+        // hitting the route directly (not just clicking the "Reactivate"
+        // button the UI only shows for suspended users) could flip a
+        // pending_approval user straight to active, skipping the Gate-3
+        // approval bookkeeping (approved_at/approved_by) and the
+        // AccountApprovedNotification email that approve() sends.
+        abort_unless($user->status === 'suspended', 404);
+
         $user->forceFill(['status' => 'active'])->save();
 
         return back()->with('status', "{$user->name} has been reactivated.");

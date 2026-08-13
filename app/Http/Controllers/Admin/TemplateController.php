@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Certificate;
 use App\Models\Template;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
@@ -76,6 +77,20 @@ class TemplateController extends Controller
 
     public function destroy(Template $template): RedirectResponse
     {
+        // Template uses SoftDeletes, so delete() only sets deleted_at - it
+        // never trips the certificates.template_id restrictOnDelete FK
+        // (that only fires on a real DELETE FROM). Without this guard, a
+        // soft-deleted template silently "succeeds" while every existing
+        // Certificate::template() belongsTo lookup for it starts resolving
+        // to null - fatal errors on the certificate detail page, the
+        // /status polling endpoint, the dashboard, and every certificate
+        // list view that reads $certificate->template.
+        if (Certificate::where('template_id', $template->id)->exists()) {
+            return back()->withErrors([
+                'template' => "\"{$template->name}\" has already-issued certificates and can't be deleted. Set it to draft instead.",
+            ]);
+        }
+
         $template->delete();
 
         return back()->with('status', "\"{$template->name}\" was deleted.");
@@ -144,6 +159,19 @@ class TemplateController extends Controller
 
     private function storeThumbnail(Request $request, Template $template): string
     {
-        return $request->file('thumbnail')->store("templates/{$template->id}", 'public');
+        // Cleans up the old thumbnail before storing the new one - without
+        // this, every manual re-upload left the previous randomly-named
+        // file behind (unlike TemplateThumbnailService::generateFromCanvas(),
+        // which already does this correctly for the auto-generated path),
+        // so storage/app/public/templates/{id}/ grew unbounded.
+        $previous = $template->thumbnail_path;
+
+        $path = $request->file('thumbnail')->store("templates/{$template->id}", 'public');
+
+        if (is_string($previous) && $previous !== '' && $previous !== $path) {
+            Storage::disk('public')->delete($previous);
+        }
+
+        return $path;
     }
 }

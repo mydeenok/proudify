@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
+use App\Models\UserSubscription;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +55,17 @@ class SubscriptionPlanController extends Controller
 
     public function destroy(Subscription $subscription): RedirectResponse
     {
+        // Same soft-delete-vs-FK gap as Template::destroy() - Subscription
+        // also uses SoftDeletes, so delete() never trips the
+        // user_subscriptions.subscription_id restrictOnDelete FK. Without
+        // this guard, any UserSubscription still pointing at this plan
+        // would have its belongsTo('subscription') resolve to null.
+        if (UserSubscription::where('subscription_id', $subscription->id)->exists()) {
+            return back()->withErrors([
+                'subscription' => "\"{$subscription->name}\" has users subscribed to it and can't be deleted. Deactivate it instead.",
+            ]);
+        }
+
         $subscription->delete();
 
         return back()->with('status', 'Plan deleted.');

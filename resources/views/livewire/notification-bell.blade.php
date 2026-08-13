@@ -1,4 +1,9 @@
-<div class="relative" x-data="{ open: false }" wire:poll.10s>
+{{-- 30s (was 10s) - the unread badge doesn't need near-real-time
+     updates, and this poll runs continuously for every logged-in session
+     on every page that includes the bell, whether or not the dropdown is
+     open. Kept unconditional (not gated on `open`) since the badge count
+     itself should still refresh in the background. --}}
+<div class="relative" x-data="{ open: false }" wire:poll.30s>
     <button
         type="button"
         @click="open = !open"
