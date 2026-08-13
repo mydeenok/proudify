@@ -201,7 +201,13 @@ class BulkUploadWizardTest extends TestCase
         $order->refresh();
 
         $this->assertSame('paid', $order->status);
-        $this->assertSame('queued', $batch->status);
+        // 'processing', not 'queued' - BulkUploadWizardService::confirm()
+        // now atomically claims the batch (queued -> processing) before
+        // dispatching, so a double-confirm can't queue the same rows
+        // twice. That claim is itself the status transition; it no longer
+        // waits for DispatchCertificateBatchJob to actually run (which
+        // Bus::fake() prevents here anyway).
+        $this->assertSame('processing', $batch->status);
         Bus::assertDispatched(DispatchCertificateBatchJob::class);
         Notification::assertSentTo($admin, AdminBulkUploadRequestedNotification::class);
     }

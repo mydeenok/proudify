@@ -46,6 +46,17 @@ class FinalizeCertificateBatchJob implements ShouldQueue
             'Failed to send admin bulk-upload-completed alert.',
             ['batch_id' => $batch->id],
         );
+
+        // The uploaded spreadsheet is only needed while re-mapping is still
+        // possible (applyMapping() re-reads it on every remap); a finished
+        // batch can never be remapped again, so this is the first point in
+        // the lifecycle where it's safe to delete. Left alone until now,
+        // it (and whatever recipient PII it contains) would otherwise sit
+        // in storage forever.
+        if ($batch->temp_upload_path) {
+            Storage::disk('local')->delete($batch->temp_upload_path);
+            $batch->forceFill(['temp_upload_path' => null])->save();
+        }
     }
 
     private function writeErrorReport(CertificateBatch $batch): string

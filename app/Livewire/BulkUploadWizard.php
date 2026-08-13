@@ -10,6 +10,7 @@ use App\Services\BulkUploadIngestService;
 use App\Services\BulkUploadWizardService;
 use App\Services\CertificatePricingService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -127,9 +128,19 @@ class BulkUploadWizard extends Component
         abort_unless(auth()->user()->isAdmin(), 403);
 
         $this->validate([
-            'userId' => ['required', 'integer', 'exists:users,id'],
+            // Was plain 'exists:users,id' - no check that the target is an
+            // active tenant. orgUsers() below (the dropdown's own source)
+            // has the same gap, so a suspended or still-pending_approval
+            // user was selectable, not just reachable by a forged request.
+            'userId' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('status', 'active')->where('role', 'user')),
+            ],
             'templateId' => ['required', 'integer', 'exists:templates,id'],
             'file' => ['required', 'file', 'mimes:csv,xlsx,xls', 'max:10240'],
+        ], [
+            'userId.exists' => 'Select an active user to issue certificates for.',
         ]);
 
         $batch = $wizard->createAdminBatch(
@@ -260,7 +271,7 @@ class BulkUploadWizard extends Component
                 ? Template::active()->orderBy('name')->get()
                 : collect(),
             'orgUsers' => $this->mode === 'admin' && $this->step === 'setup'
-                ? User::where('role', 'user')->orderBy('organization_name')->get()
+                ? User::where('role', 'user')->where('status', 'active')->orderBy('organization_name')->get()
                 : collect(),
             'template' => $this->templateId
                 ? Template::find($this->templateId)
