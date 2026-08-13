@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BillingSetting;
 use App\Models\Certificate;
 use App\Models\CertificateVerification;
-use App\Models\Subscription;
 use App\Models\Template;
 use App\Models\User;
-use App\Services\GeoLocationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -15,7 +14,7 @@ use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    public function index(Request $request, GeoLocationService $geo): View|RedirectResponse
+    public function index(Request $request): View|RedirectResponse
     {
         if ($request->user()) {
             return $request->user()->isAdmin()
@@ -40,12 +39,15 @@ class HomeController extends Controller
             'templates' => $hasTables ? Template::active()->count() : 0,
         ];
 
-        $pricingPlans = Schema::hasTable('subscriptions')
-            ? Subscription::active()->orderByDesc('is_default_free_plan')->orderBy('sort_order')->limit(3)->get()
-            : collect();
+        // Pay-per-certificate is the only billing model now (see
+        // CertificatePricingService / CertificateOrder) - the landing page
+        // used to show Subscription-tier monthly plans here, which were
+        // retired without anyone updating this page, leaving visitors with
+        // a pricing section describing a billing model that no longer
+        // exists (and no per-certificate rate shown anywhere before
+        // checkout).
+        $billing = Schema::hasTable('billing_settings') ? BillingSetting::current() : null;
 
-        $currency = $geo->currencyFor($request->ip());
-
-        return view('welcome', compact('featuredTemplates', 'stats', 'pricingPlans', 'currency'));
+        return view('welcome', compact('featuredTemplates', 'stats', 'billing'));
     }
 }
