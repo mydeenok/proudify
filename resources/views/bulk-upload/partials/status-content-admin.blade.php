@@ -27,13 +27,17 @@ $statusLabels = [
         finished: {{ $batch->isFinished() ? 'true' : 'false' }},
         errorReportAvailable: {{ $batch->error_report_path ? 'true' : 'false' }},
         statusLabels: @js($statusLabels),
+        recentActivity: [],
         poll() {
             if (this.finished) return;
             fetch('{{ route('bulk-upload.status-data', $batch) }}')
                 .then(response => response.json())
                 .then(data => {
                     Object.assign(this, data);
-                    if (!this.finished) setTimeout(() => this.poll(), 2000);
+                    // Fast enough to catch small/medium batches mid-flight
+                    // instead of only seeing a 0% -> done jump - a chunk
+                    // can finish in well under a second.
+                    if (!this.finished) setTimeout(() => this.poll(), 700);
                 });
         },
     }"
@@ -101,5 +105,27 @@ $statusLabels = [
             <div class="h-full bg-primary-container transition-all duration-500" :style="`width: ${progressPercent}%`"></div>
         </div>
         <p class="font-body-sm text-body-sm text-on-surface-variant mt-md" x-show="!finished">This page updates automatically — no need to refresh.</p>
+    </div>
+
+    <div x-show="recentActivity.length > 0" x-cloak class="bg-surface border border-outline-variant rounded-xl shadow-[0px_4px_12px_rgba(0,0,0,0.02)] mt-gutter overflow-hidden">
+        <div class="px-lg py-md border-b border-outline-variant">
+            <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Recent activity</p>
+        </div>
+        <ul class="divide-y divide-outline-variant max-h-72 overflow-y-auto">
+            <template x-for="(row, index) in recentActivity" :key="index">
+                <li x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
+                    class="flex items-center gap-sm px-lg py-sm">
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                        :class="row.status === 'succeeded' ? 'bg-emerald-50 text-emerald-600' : 'bg-error/10 text-error'">
+                        <span class="material-symbols-outlined text-[18px]" x-text="row.status === 'succeeded' ? 'check_circle' : 'error'"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="font-label-md text-label-md text-on-surface truncate" x-text="row.recipientName"></p>
+                        <p class="font-body-sm text-body-sm" :class="row.status === 'succeeded' ? 'text-on-surface-variant' : 'text-error'"
+                            x-text="row.status === 'succeeded' ? 'Certificate issued' : (row.errorMessage ?? 'Failed')"></p>
+                    </div>
+                </li>
+            </template>
+        </ul>
     </div>
 </div>

@@ -100,6 +100,20 @@ class BulkUploadWizardService
             }
         }
 
+        // Idempotency: atomically claim the batch for dispatch so a
+        // double-click, slow-network resubmit, or the payment-completion
+        // path racing a manual retry can't queue the same rows twice. Only
+        // the call that actually flips queued -> processing gets to
+        // dispatch; every other concurrent caller sees 0 rows affected and
+        // returns as a safe no-op.
+        $claimed = CertificateBatch::whereKey($batch->id)
+            ->where('status', 'queued')
+            ->update(['status' => 'processing']);
+
+        if ($claimed === 0) {
+            return;
+        }
+
         DispatchCertificateBatchJob::dispatch($batch);
 
         $batch->loadMissing('user', 'template');

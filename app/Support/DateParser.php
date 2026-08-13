@@ -34,7 +34,27 @@ class DateParser
         foreach (self::STRING_FORMATS as $format) {
             $date = \DateTime::createFromFormat('!'.$format, $value);
 
-            if ($date !== false) {
+            if ($date === false) {
+                continue;
+            }
+
+            // DateTime::createFromFormat() is lenient by default and
+            // silently overflows an invalid calendar date instead of
+            // rejecting it - "31/02/2024" (Feb has no 31st) quietly
+            // becomes 2 March with no error, so a bulk-upload CSV typo
+            // would otherwise issue a certificate with a wrong date and no
+            // validation failure anywhere. A genuinely valid date always
+            // round-trips back through the same format exactly; one that
+            // overflowed won't, so this rejects it and lets the next
+            // candidate format (or the Carbon::parse() fallback below) try
+            // instead.
+            //
+            // This does NOT resolve the separate d/m/Y vs m/d/Y ambiguity
+            // for a date where both readings are validly-formed (e.g.
+            // "03/04/2024") - d/m/Y is tried first and wins by convention
+            // when both are possible, since there's no way to know the
+            // source spreadsheet's locale from the string alone.
+            if ($date->format($format) === $value) {
                 return Carbon::instance($date);
             }
         }

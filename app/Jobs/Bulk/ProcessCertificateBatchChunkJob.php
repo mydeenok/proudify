@@ -33,16 +33,29 @@ class ProcessCertificateBatchChunkJob implements ShouldQueue
         $items = CertificateBatchItem::whereIn('id', $this->itemIds)->get();
 
         foreach ($items as $item) {
-            $item->forceFill(['status' => 'processing'])->save();
-
+            // The whole per-item body - including the initial "processing"
+            // save - is inside this try/catch now. It used to sit outside:
+            // a transient DB error on just that save (deadlock, lost
+            // connection) threw out of handle() entirely, permanently
+            // failing this chunk job (tries=1, no retry) and silently
+            // skipping every remaining item in the chunk with no record of
+            // why. One bad row can no longer take the rest of the chunk
+            // down with it.
             try {
+                $item->forceFill(['status' => 'processing'])->save();
+
                 $certificate = $action->execute($this->batch->user, $this->batch->template, $item->row_data, $this->batch);
 
                 $item->forceFill(['status' => 'succeeded', 'certificate_id' => $certificate->id])->save();
 
                 $this->incrementBatchCounters(succeeded: 1);
             } catch (Throwable $exception) {
-                $item->forceFill(['status' => 'failed', 'error_message' => $exception->getMessage()])->save();
+                try {
+                    $item->forceFill(['status' => 'failed', 'error_message' => $exception->getMessage()])->save();
+                } catch (Throwable) {
+                    // Best-effort - if even this save fails, fall through
+                    // so the loop still reaches the next item.
+                }
 
                 $this->incrementBatchCounters(failed: 1);
             }

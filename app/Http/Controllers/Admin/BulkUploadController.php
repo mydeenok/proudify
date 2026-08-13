@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\BulkUploadWizardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -27,9 +28,18 @@ class BulkUploadController extends Controller
     public function store(Request $request, BulkUploadWizardService $wizard): RedirectResponse
     {
         $validated = $request->validate([
-            'user_id' => ['required', 'exists:users,id'],
+            // Was plain 'exists:users,id' - an admin could pick a
+            // suspended or still-pending_approval user (or another admin)
+            // as the batch's target with no server-side check, only the
+            // <select>'s own contents happening to limit what's offered.
+            'user_id' => [
+                'required',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('status', 'active')->where('role', 'user')),
+            ],
             'template_id' => ['required', 'exists:templates,id'],
             'file' => ['required', 'file', 'mimes:csv,xlsx,xls', 'max:10240'],
+        ], [
+            'user_id.exists' => 'Select an active user to issue certificates for.',
         ]);
 
         $batch = $wizard->createAdminBatch(
