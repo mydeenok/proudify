@@ -33,7 +33,7 @@ class CertificateBuilderTest extends TestCase
         $template = Template::factory()->create(['html_content' => '<p>original</p>', 'is_active' => true]);
 
         $this->actingAs($admin)
-            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON])
+            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON, 'version' => $template->version])
             ->assertOk()
             ->assertJson(['status' => 'saved']);
 
@@ -43,13 +43,49 @@ class CertificateBuilderTest extends TestCase
         $this->assertTrue($template->is_active, 'Draft save must not change the live/active state.');
     }
 
+    public function test_saving_with_a_stale_version_returns_a_conflict_and_does_not_overwrite(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create(['canvas_json' => ['elements' => []]]);
+
+        // Simulates a second tab/editor's save landing first.
+        $template->update(['canvas_json' => ['elements' => [['id' => 'from_other_tab', 'type' => 'text']]], 'version' => $template->version + 1]);
+
+        $response = $this->actingAs($admin)->postJson(
+            route('admin.templates.builder.save', $template),
+            ['canvas_json' => self::CANVAS_JSON, 'version' => 1],
+        );
+
+        $response->assertStatus(409)->assertJsonStructure(['status', 'message', 'currentVersion']);
+
+        $this->assertSame(
+            ['from_other_tab'],
+            array_column($template->fresh()->canvas_json['elements'], 'id'),
+            'A stale-version save must not overwrite what the other tab already wrote.'
+        );
+    }
+
+    public function test_saving_with_the_correct_version_increments_it(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $template = Template::factory()->create();
+        $startingVersion = $template->version;
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON, 'version' => $startingVersion])
+            ->assertOk()
+            ->assertJsonPath('version', $startingVersion + 1);
+
+        $this->assertSame($startingVersion + 1, $template->fresh()->version);
+    }
+
     public function test_publishing_renders_canvas_json_into_html_content_and_activates_the_template(): void
     {
         $admin = User::factory()->admin()->create();
         $template = Template::factory()->create(['html_content' => '<p>original</p>', 'is_active' => false]);
 
         $response = $this->actingAs($admin)
-            ->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => self::CANVAS_JSON]);
+            ->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => self::CANVAS_JSON, 'version' => $template->version]);
 
         $response->assertOk()->assertJson(['status' => 'published']);
 
@@ -65,6 +101,7 @@ class CertificateBuilderTest extends TestCase
 
         $this->actingAs($admin)->postJson(route('admin.templates.builder.publish', $template), [
             'canvas_json' => self::CANVAS_JSON,
+            'version' => $template->version,
         ]);
 
         $template->refresh();
@@ -89,7 +126,7 @@ class CertificateBuilderTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON]);
+            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON, 'version' => $template->version]);
 
         $template->refresh();
         $background = $template->canvas_json['background_html'];
@@ -105,7 +142,7 @@ class CertificateBuilderTest extends TestCase
         $template = Template::factory()->create(['html_content' => '<h1>{title}</h1>']);
 
         $this->actingAs($admin)
-            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON]);
+            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON, 'version' => $template->version]);
         $firstBackground = $template->refresh()->canvas_json['background_html'];
 
         // Even if html_content changes afterwards, the stored background
@@ -113,7 +150,7 @@ class CertificateBuilderTest extends TestCase
         $template->update(['html_content' => '<h1>Completely different {title}</h1>']);
 
         $this->actingAs($admin)
-            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON]);
+            ->postJson(route('admin.templates.builder.save', $template), ['canvas_json' => self::CANVAS_JSON, 'version' => $template->version]);
 
         $this->assertSame($firstBackground, $template->refresh()->canvas_json['background_html']);
     }
@@ -132,7 +169,7 @@ class CertificateBuilderTest extends TestCase
         ];
 
         $this->actingAs($admin)
-            ->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => $canvasJson])
+            ->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => $canvasJson, 'version' => $template->version])
             ->assertOk();
 
         $schema = $template->refresh()->custom_field_schema;
@@ -155,7 +192,7 @@ class CertificateBuilderTest extends TestCase
             ],
         ];
 
-        $this->actingAs($admin)->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => $canvasJson]);
+        $this->actingAs($admin)->postJson(route('admin.templates.builder.publish', $template), ['canvas_json' => $canvasJson, 'version' => $template->version]);
         $template->refresh();
 
         \Illuminate\Support\Facades\Storage::fake('local');

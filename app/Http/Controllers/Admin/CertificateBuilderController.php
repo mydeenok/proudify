@@ -50,11 +50,29 @@ class CertificateBuilderController extends Controller
     {
         $validated = $request->validate([
             'canvas_json' => ['required', 'array'],
+            // LayoutToHtmlRenderer::render() does
+            // collect($elements)->map(fn (array $element) => ...) with a
+            // hard `array` type hint on every entry - without this rule, a
+            // malformed payload (e.g. one element serialized as a string)
+            // threw an uncaught TypeError instead of a clean validation
+            // error.
+            'canvas_json.elements' => ['sometimes', 'array'],
+            'canvas_json.elements.*' => ['array'],
+            // The version this client last loaded/saved - see claimVersion().
+            'version' => ['required', 'integer', 'min:1'],
         ]);
 
-        $template->update(['canvas_json' => $this->withBackgroundHtml($template, $validated['canvas_json'], $importService)]);
+        $canvasJson = $this->withBackgroundHtml($template, $validated['canvas_json'], $importService);
 
-        return response()->json(['status' => 'saved', 'saved_at' => now()->toIso8601String()]);
+        $conflict = $this->claimVersion($template, (int) $validated['version'], [
+            'canvas_json' => $canvasJson,
+        ]);
+
+        if ($conflict) {
+            return $conflict;
+        }
+
+        return response()->json(['status' => 'saved', 'saved_at' => now()->toIso8601String(), 'version' => $validated['version'] + 1]);
     }
 
     /**
@@ -71,13 +89,23 @@ class CertificateBuilderController extends Controller
     ): JsonResponse {
         $validated = $request->validate([
             'canvas_json' => ['required', 'array'],
+            // LayoutToHtmlRenderer::render() does
+            // collect($elements)->map(fn (array $element) => ...) with a
+            // hard `array` type hint on every entry - without this rule, a
+            // malformed payload (e.g. one element serialized as a string)
+            // threw an uncaught TypeError instead of a clean validation
+            // error.
+            'canvas_json.elements' => ['sometimes', 'array'],
+            'canvas_json.elements.*' => ['array'],
+            // The version this client last loaded/saved - see claimVersion().
+            'version' => ['required', 'integer', 'min:1'],
         ]);
 
         $canvasJson = $this->withBackgroundHtml($template, $validated['canvas_json'], $importService);
 
         // Invalidate any stale corner so the geometry / Browsershot
         // detector re-runs against the newly published layout.
-        $template->update([
+        $conflict = $this->claimVersion($template, (int) $validated['version'], [
             'canvas_json' => $canvasJson,
             'html_content' => $renderer->render($canvasJson),
             'custom_field_schema' => $this->deriveCustomFieldSchema($canvasJson, $importService),
@@ -85,11 +113,47 @@ class CertificateBuilderController extends Controller
             'is_active' => true,
         ]);
 
+        if ($conflict) {
+            return $conflict;
+        }
+
         // Best-effort card thumbnail from the same canvas painter — publish
         // still succeeds if Node/fonts are unavailable on this host.
         $thumbnails->generateQuietly($template->fresh(), $request->user());
 
         return response()->json(['status' => 'published', 'redirect' => route('admin.templates.index')]);
+    }
+
+    /**
+     * Atomically claims this template for the given expected version - the
+     * conditional UPDATE ... WHERE version = ? is itself the concurrency
+     * guard, no separate lock/transaction needed. Two tabs/editors on the
+     * same template used to silently overwrite each other's canvas_json on
+     * autosave (last write wins, no conflict detection); now only the
+     * first save/publish to arrive for a given version actually lands -
+     * anything after that (from a client working off a now-stale version)
+     * gets a 409 instead of quietly clobbering what the other tab wrote.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return JsonResponse|null null on success, a 409 JsonResponse on conflict
+     */
+    private function claimVersion(Template $template, int $expectedVersion, array $attributes): ?JsonResponse
+    {
+        $claimed = Template::whereKey($template->id)
+            ->where('version', $expectedVersion)
+            ->update([...$attributes, 'version' => $expectedVersion + 1]);
+
+        if ($claimed > 0) {
+            return null;
+        }
+
+        $currentVersion = Template::whereKey($template->id)->value('version');
+
+        return response()->json([
+            'status' => 'conflict',
+            'message' => 'This template was changed elsewhere (another tab, or another admin). Reload the page to see the latest version before continuing.',
+            'currentVersion' => $currentVersion,
+        ], 409);
     }
 
     /**

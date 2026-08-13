@@ -26,6 +26,11 @@ class TemplateFactory extends Factory
             'orientation' => 'landscape',
             'is_active' => true,
             'is_exclusive' => false,
+            // Explicit (not left to the column's DB default) so a factory-
+            // created model's in-memory $template->version is immediately
+            // usable in tests without an extra ->refresh() call - Eloquent
+            // doesn't re-fetch server-applied defaults after create().
+            'version' => 1,
             'created_by' => User::factory()->admin(),
             // Pre-cached so ordinary tests don't trigger real corner
             // detection (a full Browsershot screenshot render) on every

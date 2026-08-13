@@ -20,6 +20,7 @@ class Template extends Model
         'category',
         'html_content',
         'canvas_json',
+        'version',
         'custom_field_schema',
         'watermark_corner',
         'thumbnail_path',
