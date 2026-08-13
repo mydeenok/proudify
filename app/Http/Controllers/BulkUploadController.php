@@ -146,6 +146,21 @@ class BulkUploadController extends Controller
     {
         $this->authorizeAccess($request, $batch);
 
+        // Last few rows the queue actually touched, newest first - gives
+        // the status page something to show beyond a percentage while a
+        // batch is mid-flight, since chunks often finish in well under a
+        // second and a single "0% -> done" jump reads as broken.
+        $recentActivity = $batch->items()
+            ->whereIn('status', ['succeeded', 'failed'])
+            ->latest('updated_at')
+            ->limit(8)
+            ->get(['status', 'row_data', 'error_message'])
+            ->map(fn ($item) => [
+                'status' => $item->status,
+                'recipientName' => $item->row_data['recipient_name'] ?? 'Unknown recipient',
+                'errorMessage' => $item->error_message,
+            ]);
+
         // camelCase here to match the Alpine state in bulk-upload/status.blade.php
         // exactly, since Object.assign(this, data) does a literal key merge
         // with no snake_case-to-camelCase translation.
@@ -158,6 +173,7 @@ class BulkUploadController extends Controller
             'progressPercent' => $batch->progressPercent(),
             'finished' => $batch->isFinished(),
             'errorReportAvailable' => (bool) $batch->error_report_path,
+            'recentActivity' => $recentActivity,
         ]);
     }
 
