@@ -28,12 +28,16 @@ Route::post('/contact', [ContactController::class, 'store'])
     ->name('contact.store');
 
 Route::get('/certificates/verify/{uuid}/{code}', [PublicVerificationController::class, 'show'])
+    ->middleware('throttle:30,1')
     ->name('certificates.verify');
 Route::get('/certificates/verify/{uuid}/{code}/download', [PublicVerificationController::class, 'download'])
+    ->middleware('throttle:30,1')
     ->name('certificates.verify.download');
 Route::get('/certificates/verify/{uuid}/{code}/image', [PublicVerificationController::class, 'image'])
+    ->middleware('throttle:30,1')
     ->name('certificates.verify.image');
 Route::get('/certificates/verify/{uuid}/{code}/qr', [PublicVerificationController::class, 'qr'])
+    ->middleware('throttle:30,1')
     ->name('certificates.verify.qr');
 
 Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');
@@ -86,7 +90,9 @@ Route::middleware(['auth', 'approved'])->group(function () {
 
     Route::prefix('certificates/checkout/{certificateOrder:uuid}')->name('certificates.checkout.')->group(function () {
         Route::get('/', [CertificateCheckoutController::class, 'show'])->name('show');
-        Route::post('/create-order', [CertificateCheckoutController::class, 'createOrder'])->name('create-order');
+        Route::post('/create-order', [CertificateCheckoutController::class, 'createOrder'])
+            ->middleware('throttle:20,1')
+            ->name('create-order');
         Route::post('/verify-payment', [CertificateCheckoutController::class, 'verifyPayment'])
             ->middleware('throttle:20,1')
             ->name('verify-payment');
@@ -113,7 +119,9 @@ Route::middleware(['auth', 'approved'])->group(function () {
 
         Route::prefix('checkout/{certificateOrder:uuid}')->name('checkout.')->group(function () {
             Route::get('/', [BulkUploadCheckoutController::class, 'show'])->name('show');
-            Route::post('/create-order', [BulkUploadCheckoutController::class, 'createOrder'])->name('create-order');
+            Route::post('/create-order', [BulkUploadCheckoutController::class, 'createOrder'])
+                ->middleware('throttle:20,1')
+                ->name('create-order');
             Route::post('/verify-payment', [BulkUploadCheckoutController::class, 'verifyPayment'])
                 ->middleware('throttle:20,1')
                 ->name('verify-payment');

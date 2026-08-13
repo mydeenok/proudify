@@ -41,6 +41,11 @@ class BulkUploadCheckoutController extends Controller
             return response()->json(['message' => 'Unable to start checkout right now. Please try again shortly.'], 502);
         }
 
+        // See CertificateCheckoutController::createOrder() - persisted so
+        // the webhook safety net can find this order by razorpay_order_id
+        // while it's still pending.
+        $certificateOrder->update(['razorpay_order_id' => $order['id']]);
+
         return response()->json([
             ...$order,
             'key' => config('services.razorpay.key'),

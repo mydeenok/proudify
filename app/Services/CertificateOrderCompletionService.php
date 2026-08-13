@@ -29,17 +29,41 @@ class CertificateOrderCompletionService
      */
     public function complete(CertificateOrder $order, array $paymentFields): void
     {
-        DB::transaction(function () use ($order, $paymentFields) {
+        $shouldIssue = false;
+
+        // $order is deliberately reassigned to the transaction's return
+        // value (not just mutated inside the closure) - a `use ($order)`
+        // closure captures by value, so writing `$order = $locked` inside
+        // it never used to escape the closure, leaving the rest of this
+        // method working off stale pre-lock attributes.
+        $order = DB::transaction(function () use ($order, $paymentFields, &$shouldIssue) {
             /** @var CertificateOrder $locked */
             $locked = CertificateOrder::whereKey($order->id)->lockForUpdate()->first();
 
-            // Idempotency: the client-side verifyPayment call and the
-            // webhook can both arrive for the same order (e.g. the browser
-            // tab closes right after payment succeeds but before its own
-            // request completes) - whichever gets here first wins, the
-            // other is a safe no-op.
+            // True idempotency: the client-side verifyPayment call and the
+            // webhook can both arrive for the same already-paid order (e.g.
+            // the browser tab closes right after payment succeeds but
+            // before its own request completes) - whichever gets here
+            // first wins and issues below; this is the safe no-op for
+            // whichever arrives second. $shouldIssue stays false so
+            // issuance never runs twice for one payment.
+            if ($locked->status === 'paid') {
+                return $locked;
+            }
+
+            // A verified payment arrived for an order that isn't 'pending'
+            // for some other reason - most commonly
+            // ExpireStaleCertificateOrdersJob already flipped it to
+            // 'expired' while a slow-but-legitimate payment was still
+            // completing. Money has genuinely moved, so honour it and
+            // issue below rather than silently telling the customer
+            // "success" while fulfilling nothing - but this should never
+            // happen in normal operation, so alert loudly.
             if ($locked->status !== 'pending') {
-                return;
+                Log::critical('Verified payment received for a non-pending certificate order - completing it anyway.', [
+                    'certificate_order_id' => $locked->id,
+                    'previous_status' => $locked->status,
+                ]);
             }
 
             $locked->update([
@@ -50,12 +74,20 @@ class CertificateOrderCompletionService
                 'paid_at' => now(),
             ]);
 
-            $order = $locked;
+            $shouldIssue = true;
+
+            return $locked;
         });
+
+        if (! $shouldIssue) {
+            return;
+        }
 
         // Issuance happens outside the transaction above - it can involve
         // synchronous PDF/QR generation (single) or dispatching a queued
-        // batch (bulk), neither of which should hold a row lock.
+        // batch (bulk), neither of which should hold a row lock. Gated on
+        // $shouldIssue so a duplicate webhook/verify-payment call for an
+        // already-paid order can never issue a second certificate/batch.
         if ($order->type === 'single') {
             $this->issueSingle($order);
         } else {
