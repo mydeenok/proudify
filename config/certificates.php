@@ -4,6 +4,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Verification Signing
+    |--------------------------------------------------------------------------
+    |
+    | HMAC secret for VerificationService::sign()/verify() - kept separate
+    | from APP_KEY so rotating/leaking one doesn't also affect the other.
+    | Falls back to APP_KEY when unset so existing signed certificates
+    | keep verifying without a mass re-sign; set CERTIFICATE_VERIFICATION_KEY
+    | explicitly to actually decouple them.
+    |
+    */
+
+    'verification_key' => env('CERTIFICATE_VERIFICATION_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
     | PDF / Image Rendering
     |--------------------------------------------------------------------------
     */

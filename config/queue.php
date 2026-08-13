@@ -40,7 +40,15 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            // Must stay comfortably above certificates.job_timeout (120s
+            // default) - Laravel's own docs are explicit that retry_after
+            // needs to exceed the longest-running job's timeout. It used
+            // to default to 90s here, below that 120s timeout: any
+            // certificate/email job that legitimately ran 90-120s (slow
+            // Node render, slow SMTP handshake) got treated as abandoned
+            // and picked up by a second worker while the first was still
+            // running it - duplicate PDFs, duplicate emails.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 150),
             'after_commit' => false,
         ],
 
