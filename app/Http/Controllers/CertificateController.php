@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -411,7 +412,16 @@ class CertificateController extends Controller
             'template_id' => ['required', 'exists:templates,id'],
             'title' => ['required', 'string', 'max:150'],
             'recipient_name' => ['required', 'string', 'max:150'],
-            'recipient_email' => ['required', 'email', 'max:255'],
+            // :dns rejects a domain with no MX/A record - syntax-only
+            // validation was letting typo'd/dead domains straight through
+            // to send, which is one of the biggest sources of the bounce
+            // volume this app was seeing. Only applied here (final submit),
+            // not on the draft-autosave rules, so a DNS lookup doesn't add
+            // latency to every keystroke while a form is still in progress.
+            // Skipped under the test runner - it has no real DNS
+            // resolution, so even a legitimate domain like example.com
+            // would fail every time.
+            'recipient_email' => ['required', app()->runningUnitTests() ? 'email' : 'email:rfc,dns', 'max:255'],
             'description' => ['nullable', 'string', 'max:500'],
             'date_of_issue' => ['required', 'date'],
             'date_of_expiry' => ['nullable', 'date', 'after:date_of_issue'],
@@ -503,9 +513,31 @@ class CertificateController extends Controller
             ]);
         }
 
-        $renderService->generateAssetsSynchronously($certificate);
+        // Single-certificate regeneration writes to fixed, certificate-uuid
+        // -based paths (see CertificateCanvasRenderService::wrapImageAsPdf /
+        // CertificateRenderService::convertPdfToImage) via non-atomic
+        // Imagick writes. Without a lock, a double-click or two open tabs
+        // both calling regenerate() concurrently could interleave two
+        // writes to the exact same PDF/JPG file, and a download()/image()
+        // request landing mid-write could serve a corrupt, partially-
+        // written file. The batch path doesn't need this - its jobs are
+        // already serialized per-certificate by WithoutOverlapping.
+        $lock = Cache::lock("certificate-regenerate:{$certificate->id}", 60);
 
-        $certificate->refresh();
+        if (! $lock->get()) {
+            return response()->json([
+                ...$this->statusPayload($certificate),
+                'message' => 'This certificate is already being regenerated - please wait a moment.',
+            ], 409);
+        }
+
+        try {
+            $renderService->generateAssetsSynchronously($certificate);
+
+            $certificate->refresh();
+        } finally {
+            $lock->release();
+        }
 
         return response()->json([
             ...$this->statusPayload($certificate),
@@ -568,6 +600,15 @@ class CertificateController extends Controller
         }
 
         if ($certificate->image_generation_status === 'processing') {
+            return;
+        }
+
+        // GenerateCertificatePdfJob/GenerateCertificateQrCodeJob now flip
+        // this to 'failed' on their own permanent failure (they didn't
+        // used to) - without the guard below, a certificate stuck here got
+        // a brand new, equally doomed job queued on every single /status
+        // poll from the user's open tab instead of ever surfacing as failed.
+        if ($certificate->image_generation_status === 'failed') {
             return;
         }
 

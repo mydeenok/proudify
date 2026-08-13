@@ -7,6 +7,7 @@ use App\Jobs\Certificates\GenerateCertificatePdfJob;
 use App\Models\Certificate;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Bus;
+use Throwable;
 
 class RegenerateCertificateAssetsCommand extends Command
 {
@@ -30,6 +31,8 @@ class RegenerateCertificateAssetsCommand extends Command
             return self::FAILURE;
         }
 
+        $failures = 0;
+
         foreach ($certificates as $certificate) {
             if (! $certificate->qr_code_path) {
                 $this->warn("Skipping certificate #{$certificate->id}: QR code not generated yet.");
@@ -39,12 +42,28 @@ class RegenerateCertificateAssetsCommand extends Command
 
             $this->info("Regenerating certificate #{$certificate->id} ({$certificate->recipient_name})...");
 
-            Bus::dispatchSync(new GenerateCertificatePdfJob($certificate));
-            Bus::dispatchSync(new ConvertCertificatePdfToImageJob($certificate));
+            // One certificate's render crashing (e.g. the Node/Skia
+            // renderer aborting on a broken template asset) used to
+            // propagate straight out of this loop, silently skipping every
+            // remaining certificate in the run with no per-row error
+            // reporting - worst in regenerate-all mode with no {id} given.
+            try {
+                Bus::dispatchSync(new GenerateCertificatePdfJob($certificate));
+                Bus::dispatchSync(new ConvertCertificatePdfToImageJob($certificate));
 
-            $certificate->refresh();
-            $this->line("  pdf: {$certificate->pdf_path}");
-            $this->line("  image: {$certificate->image_path}");
+                $certificate->refresh();
+                $this->line("  pdf: {$certificate->pdf_path}");
+                $this->line("  image: {$certificate->image_path}");
+            } catch (Throwable $exception) {
+                $failures++;
+                $this->error("  failed: {$exception->getMessage()}");
+            }
+        }
+
+        if ($failures > 0) {
+            $this->warn("Done with {$failures} failure(s) - see above.");
+
+            return self::FAILURE;
         }
 
         $this->info('Done.');

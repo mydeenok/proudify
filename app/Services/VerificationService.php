@@ -18,9 +18,14 @@ class VerificationService
 {
     public function generateCode(): string
     {
+        // withTrashed() - Certificate uses SoftDeletes, and the default
+        // scope excludes soft-deleted rows. Without this, a soft-deleted
+        // certificate's code could be handed out again to a brand new
+        // certificate while the old row (still holding that same code)
+        // is only hidden from queries, not gone.
         do {
             $code = Str::upper(Str::random(8));
-        } while (Certificate::where('verification_code', $code)->exists());
+        } while (Certificate::withTrashed()->where('verification_code', $code)->exists());
 
         return $code;
     }
@@ -34,7 +39,12 @@ class VerificationService
      */
     public function sign(string $uuid, string $code, string $dateOfIssue): string
     {
-        return hash_hmac('sha256', "{$uuid}|{$code}|{$dateOfIssue}", config('app.key'));
+        // A dedicated key (falling back to app.key so existing signed
+        // certificates keep verifying without a mass re-sign) - reusing
+        // the app's primary encryption key here meant an APP_KEY rotation
+        // or leak affected app-wide encryption AND every certificate's
+        // verification signature together. See certificates.verification_key.
+        return hash_hmac('sha256', "{$uuid}|{$code}|{$dateOfIssue}", config('certificates.verification_key') ?: config('app.key'));
     }
 
     /**
