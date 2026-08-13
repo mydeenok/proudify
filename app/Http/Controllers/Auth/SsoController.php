@@ -62,6 +62,21 @@ class SsoController extends Controller
 
         abort_if(! $email, 422, 'Identity provider did not return an email address.');
 
+        // Cognito surfaces email_verified for most federated IdPs (Google
+        // reliably, Facebook less so) - when it's explicitly present and
+        // false, the IdP itself is saying this email hasn't been confirmed
+        // to belong to whoever is signing in, and trusting it anyway would
+        // let someone log in as (or silently link to) an existing account
+        // via an unverified address. Absent entirely, this falls back to
+        // the previous behaviour rather than breaking providers that don't
+        // send the claim at all.
+        $emailVerified = $claims['email_verified'] ?? true;
+        abort_if(
+            $emailVerified === false || $emailVerified === 'false',
+            422,
+            'Your identity provider has not verified this email address.'
+        );
+
         $user = User::where('email', $email)->first();
 
         if (! $user) {
