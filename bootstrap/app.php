@@ -4,6 +4,8 @@ use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsApproved;
 use App\Http\Middleware\RedirectAdminFromTenantRoutes;
 use App\Jobs\Billing\ExpireStaleCertificateOrdersJob;
+use App\Jobs\Subscriptions\ExpireStaleSubscriptionsJob;
+use App\Jobs\Subscriptions\ResetUsageCountersJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -48,11 +50,18 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
-        // Subscription-based billing is retired (see CertificateOrder /
-        // CertificatePricingService for the pay-per-certificate model that
-        // replaced it) - the job classes stay in the codebase for now
-        // (see app/Jobs/Subscriptions) but are no longer scheduled.
         $schedule->job(new ExpireStaleCertificateOrdersJob)->hourly();
+
+        // Subscription-based billing is retired (PurchaseController now
+        // redirects instead of taking payment - see CertificateOrder /
+        // CertificatePricingService for the pay-per-certificate model that
+        // replaced it), so no new UserSubscription rows get created. These
+        // still need to run for whatever legacy rows already exist:
+        // without them, an old subscription's end_date passing would never
+        // flip is_active off, leaving stale "active" data around
+        // indefinitely for anything that still reads it.
+        $schedule->job(new ExpireStaleSubscriptionsJob)->daily();
+        $schedule->job(new ResetUsageCountersJob)->daily();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

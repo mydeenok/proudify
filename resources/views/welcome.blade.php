@@ -274,60 +274,42 @@
     </section>
 
     {{-- Pricing --}}
-    @if ($pricingPlans->isNotEmpty())
+    @if ($billing)
         <section id="pricing" class="bg-floor border-b border-outline-variant scroll-mt-24" x-data="{ shown: false }" x-intersect.once.threshold.12="shown = true">
             <div class="max-w-[1080px] mx-auto px-margin py-2xl lg:py-[80px]">
                 <div class="max-w-2xl mb-2xl transition-all duration-700 ease-out" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'">
                     <p class="font-label-sm text-label-sm text-primary tracking-[0.2em] uppercase mb-md">05 — Pricing</p>
                     <h2 class="font-headline-xl text-[32px] md:text-[40px] leading-[1.12] text-on-surface tracking-tight font-bold">
-                        Start free. Upgrade when your volume grows.
+                        Pay only for what you issue.
                     </h2>
-                    <p class="mt-md font-body-md text-body-md text-on-surface-variant">No hidden fees. Pick what matches how many certificates you issue each month.</p>
+                    <p class="mt-md font-body-md text-body-md text-on-surface-variant">No subscriptions, no monthly fees. Design templates for free, then pay per certificate when you issue.</p>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 border border-outline-variant rounded-2xl overflow-hidden bg-white shadow-sm transition-all duration-700 ease-out delay-75" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'">
-                    @foreach ($pricingPlans as $plan)
-                        @php $isFree = $plan->isFree(); @endphp
-                        <div @class([
-                            'p-lg md:p-xl flex flex-col relative',
-                            'border-b md:border-b-0 md:border-r border-outline-variant last:border-0',
-                            'bg-white' => $isFree,
-                            'bg-gradient-to-b from-primary-fixed/35 via-white to-white' => ! $isFree,
-                        ])>
-                            @unless ($isFree)
-                                <span class="absolute top-md right-md font-label-sm text-[10px] uppercase tracking-wider text-primary bg-white/90 border border-primary/20 px-2 py-0.5 rounded-full">Most chosen</span>
-                            @endunless
-                            <h3 class="font-headline-md text-headline-md text-on-surface pr-20">{{ $plan->name }}</h3>
-                            <p class="mt-xs font-body-sm text-body-sm text-on-surface-variant min-h-[40px]">{{ $plan->description }}</p>
-                            <div class="mt-lg mb-lg">
-                                @if ($isFree)
-                                    <span class="font-headline-xl text-[36px] leading-none text-on-surface tracking-tight">Free</span>
-                                @else
-                                    <span class="font-headline-xl text-[36px] leading-none text-on-surface tracking-tight">{{ $currency === 'INR' ? '₹' : '$' }}{{ number_format($plan->priceFor('monthly', $currency), 0) }}</span>
-                                    <span class="font-body-sm text-body-sm text-on-surface-variant">/month</span>
-                                @endif
-                            </div>
-                            <ul class="space-y-sm mb-xl flex-grow">
-                                <li class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface">
-                                    <span class="material-symbols-outlined text-secondary text-[18px]">check</span>
-                                    Issue up to {{ number_format($plan->certificates_per_month) }} certificates / month
-                                </li>
-                                <li class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface">
-                                    <span class="material-symbols-outlined text-secondary text-[18px]">check</span>
-                                    Cover up to {{ number_format($plan->users_per_month) }} recipients / month
-                                </li>
-                            </ul>
-                            <a href="{{ route('register') }}" @class([
-                                'h-11 inline-flex items-center justify-center rounded-lg font-label-md text-label-md transition-colors',
-                                'border border-outline-variant hover:bg-surface-container-low' => $isFree,
-                                'btn-primary' => ! $isFree,
-                            ])>{{ $isFree ? 'Start free' : 'Choose plan' }}</a>
-                        </div>
-                    @endforeach
+                <div class="max-w-md border border-outline-variant rounded-2xl overflow-hidden bg-white shadow-sm p-lg md:p-xl transition-all duration-700 ease-out delay-75" :class="shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'">
+                    <h3 class="font-headline-md text-headline-md text-on-surface">Pay-per-certificate</h3>
+                    <p class="mt-xs font-body-sm text-body-sm text-on-surface-variant">Every account starts free — you're only charged when you actually issue.</p>
+                    <div class="mt-lg mb-lg">
+                        <span class="font-headline-xl text-[36px] leading-none text-on-surface tracking-tight">₹{{ number_format($billing->price_per_certificate_inr, 0) }}</span>
+                        <span class="font-body-sm text-body-sm text-on-surface-variant">/ certificate issued</span>
+                    </div>
+                    <ul class="space-y-sm mb-xl">
+                        <li class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface">
+                            <span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+                            Unlimited templates in the Visual Builder — free
+                        </li>
+                        <li class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface">
+                            <span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+                            Verification pages and QR codes included
+                        </li>
+                        @if ($billing->bulk_discount_percent > 0)
+                            <li class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface">
+                                <span class="material-symbols-outlined text-secondary text-[18px]">check</span>
+                                {{ number_format($billing->bulk_discount_percent, 0) }}% off automatically on orders over {{ number_format($billing->bulk_discount_threshold) }} certificates
+                            </li>
+                        @endif
+                    </ul>
+                    <a href="{{ route('register') }}" class="btn-primary h-11 inline-flex items-center justify-center rounded-lg font-label-md text-label-md transition-colors w-full">Create free account</a>
                 </div>
-                <p class="mt-xl text-center">
-                    <a href="{{ route('pricing') }}" class="font-label-md text-label-md text-primary hover:underline">See full plan comparison</a>
-                </p>
             </div>
         </section>
     @endif
