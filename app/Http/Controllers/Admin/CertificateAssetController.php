@@ -43,7 +43,29 @@ class CertificateAssetController extends Controller
 
         $extension = strtolower($validated['file']->getClientOriginalExtension() ?: 'png');
         $basename = Str::slug(pathinfo($validated['file']->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'asset';
-        $path = $validated['file']->storeAs(self::FOLDER, $basename.'-'.Str::random(6).'.'.$extension, self::DISK);
+        $filename = $basename.'-'.Str::random(6).'.'.$extension;
+
+        // Laravel's built-in 'image' rule deliberately excludes svg (it
+        // isn't a raster image and can carry a <script>), which is why
+        // this endpoint uses 'mimes' instead - but that means an uploaded
+        // SVG's XML is never sanitized before being served back straight
+        // from public storage. Anyone who opens that file's URL directly
+        // (not as an <img> tag - as a top-level navigation) gets it
+        // rendered as an SVG document, and any <script>/event-handler
+        // inside runs in this app's origin: stored XSS. Sanitizing here
+        // strips exactly that before the file ever touches disk.
+        if ($extension === 'svg') {
+            try {
+                $safeSvg = $this->sanitizeSvg($validated['file']->getContent());
+            } catch (\Throwable) {
+                return response()->json(['message' => 'That file could not be read as valid SVG.'], 422);
+            }
+
+            $path = self::FOLDER.'/'.$filename;
+            Storage::disk(self::DISK)->put($path, $safeSvg);
+        } else {
+            $path = $validated['file']->storeAs(self::FOLDER, $filename, self::DISK);
+        }
 
         return response()->json([
             'path' => $path,
@@ -52,10 +74,61 @@ class CertificateAssetController extends Controller
         ], 201);
     }
 
+    /**
+     * Strips <script> elements and on*="" event-handler / javascript:
+     * href attributes from an SVG's XML tree. Deliberately does NOT pass
+     * LIBXML_NOENT or enable substituteEntities - leaving external entity
+     * expansion off is what prevents this from being an XXE vector on top
+     * of everything else.
+     */
+    private function sanitizeSvg(string $svg): string
+    {
+        libxml_use_internal_errors(true);
+
+        $dom = new \DOMDocument;
+        $loaded = $dom->loadXML($svg, LIBXML_NONET);
+
+        libxml_clear_errors();
+
+        if (! $loaded || ! $dom->documentElement) {
+            throw new \RuntimeException('Uploaded file is not valid SVG/XML.');
+        }
+
+        $xpath = new \DOMXPath($dom);
+
+        foreach (iterator_to_array($xpath->query('//*[local-name()="script"]')) as $scriptNode) {
+            $scriptNode->parentNode?->removeChild($scriptNode);
+        }
+
+        foreach (iterator_to_array($xpath->query('//@*')) as $attribute) {
+            $name = strtolower($attribute->nodeName);
+            $value = trim($attribute->nodeValue ?? '');
+
+            $isEventHandler = str_starts_with($name, 'on');
+            $isScriptUri = in_array($name, ['href', 'xlink:href'], true) && stripos($value, 'javascript:') === 0;
+
+            if ($isEventHandler || $isScriptUri) {
+                $attribute->ownerElement?->removeAttributeNode($attribute);
+            }
+        }
+
+        return $dom->saveXML($dom->documentElement) ?: '';
+    }
+
     private function ensureSeedAssets(): void
     {
         if (! Storage::disk(self::DISK)->exists(self::FOLDER)) {
             Storage::disk(self::DISK)->makeDirectory(self::FOLDER);
+        }
+
+        // The docblock above index() says this only seeds "on first empty
+        // list," but the foreach below used to run unconditionally on
+        // every call - i.e. every time the builder's asset panel opened -
+        // silently overwriting seal-star.svg/border-ornament.svg/ribbon.svg
+        // even after an admin had replaced or removed them. This actually
+        // gates on the folder being empty, matching the documented intent.
+        if (Storage::disk(self::DISK)->files(self::FOLDER) !== []) {
+            return;
         }
 
         $seeds = [

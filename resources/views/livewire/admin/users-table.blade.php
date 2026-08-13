@@ -32,7 +32,9 @@
                 <option value="pending_otp">Pending OTP</option>
                 <option value="pending_approval">Pending Approval</option>
                 <option value="suspended">Suspended</option>
-                <option value="rejected">Rejected</option>
+                {{-- No "rejected" option: UserController::reject() deletes
+                     the user row rather than ever setting this status, so
+                     filtering by it always returns zero rows. --}}
             </select>
 
             <select

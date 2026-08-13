@@ -86,11 +86,19 @@ class ProfileController extends Controller
 
         $user = $request->user();
         $logos = $user->org_logos ?? [];
+        $logosToDelete = [];
+        $oldSignaturePath = null;
 
         try {
             foreach ($request->input('remove_logos', []) as $pathToRemove) {
                 if (($index = array_search($pathToRemove, $logos, true)) !== false) {
-                    Storage::disk('local')->delete($pathToRemove);
+                    // Deletion itself is deferred until after save()
+                    // succeeds below - deleting here first left a window
+                    // where a save() failure had already removed a file
+                    // the (unsaved) DB row still pointed at, breaking the
+                    // user's existing logo even though the update was
+                    // reported as failed.
+                    $logosToDelete[] = $pathToRemove;
                     unset($logos[$index]);
                 }
             }
@@ -108,13 +116,19 @@ class ProfileController extends Controller
             $user->org_logos = $logos;
 
             if ($request->hasFile('signature')) {
-                if ($user->signature_path) {
-                    Storage::disk('local')->delete($user->signature_path);
-                }
+                $oldSignaturePath = $user->signature_path;
                 $user->signature_path = $request->file('signature')->store('signatures', 'local');
             }
 
             $user->save();
+
+            foreach ($logosToDelete as $path) {
+                Storage::disk('local')->delete($path);
+            }
+
+            if ($oldSignaturePath) {
+                Storage::disk('local')->delete($oldSignaturePath);
+            }
         } catch (Throwable $exception) {
             Log::error('Failed to save organization branding.', [
                 'user_id' => $user->id,

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\UserSubscription;
 use App\Notifications\AdminSubscriptionCancelledNotification;
-use App\Notifications\SubscriptionCancelledNotification;
 use App\Support\NotifyAdmins;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,14 +58,21 @@ class UserSubscriptionController extends Controller
         $userSubscription->update(['is_active' => false, 'auto_renew' => false]);
         $userSubscription->loadMissing('user', 'subscription');
 
-        $userSubscription->user->notify(new SubscriptionCancelledNotification($userSubscription));
-
+        // Deliberately NOT sending SubscriptionCancelledNotification to
+        // the user anymore - that email's subject line is "Your Proudify
+        // subscription was cancelled," implying they're losing access to
+        // something. Since SubscriptionQuotaService has no callers
+        // anywhere in certificate/bulk issuance, this action has never
+        // actually restricted the user - sending that email would tell
+        // them something false. The admin-facing alert below stays: it's
+        // a factual "an admin cancelled this record" note, not a claim
+        // about the user's access changing.
         NotifyAdmins::notify(
             new AdminSubscriptionCancelledNotification($userSubscription),
             'Failed to send admin subscription-cancelled alert.',
             ['user_subscription_id' => $userSubscription->id],
         );
 
-        return back()->with('status', 'Subscription cancelled.');
+        return back()->with('status', 'Subscription marked cancelled (informational only — does not restrict issuance).');
     }
 }
